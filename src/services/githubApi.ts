@@ -55,7 +55,7 @@ class GitHubApiService {
   }
 
   async getWorkflowRuns(dateRange?: DateRange, page = 1, perPage = 100): Promise<GitHubApiResponse<WorkflowRun>> {
-    let url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_NAME}.yml/runs?page=${page}&per_page=${perPage}`;
+    let url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_NAME}.yaml/runs?page=${page}&per_page=${perPage}`;
     
     if (dateRange) {
       const createdQuery = `created:${dateRange.start.toISOString().split('T')[0]}..${dateRange.end.toISOString().split('T')[0]}`;

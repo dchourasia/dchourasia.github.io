@@ -53,7 +53,7 @@ npm start
 
 The application is configured to analyze the following workflow:
 - **Repository**: `red-hat-data-services/rhods-devops-infra`
-- **Workflow**: `upstream-auto-merge.yml`
+- **Workflow**: `upstream-auto-merge.yaml`
 
 To analyze different workflows, modify the constants in `src/services/githubApi.ts`:
 ```typescript
