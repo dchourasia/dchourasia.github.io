@@ -49,7 +49,7 @@ export const useJobFilters = (jobs: ProcessedJob[]) => {
     setStatusFilter('');
   };
 
-  const hasActiveFilters = searchFilter || jobNameFilter || statusFilter;
+  const hasActiveFilters = !!(searchFilter || jobNameFilter || statusFilter);
 
   return {
     // Filter states
