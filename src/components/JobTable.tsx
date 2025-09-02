@@ -133,16 +133,20 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Error Summary
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Job URL
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedJobs.map((job, index) => (
               <tr key={`${job.workflowRunId}-${job.jobName}-${index}`} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {job.jobName}
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <a
+                    href={job.jobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                  >
+                    {job.jobName}
+                  </a>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {job.executionDate}
@@ -154,16 +158,6 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                   {job.errorSummary || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
-                  <a
-                    href={job.jobUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-blue-800 hover:underline"
-                  >
-                    View Job
-                  </a>
                 </td>
               </tr>
             ))}
