@@ -12,16 +12,41 @@ type SortDirection = 'asc' | 'desc';
 const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
   const [sortField, setSortField] = useState<SortField>('executionDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [filter, setFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [jobNameFilter, setJobNameFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Get unique job names and statuses for dropdown options
+  const uniqueJobNames = useMemo(() => {
+    const names = Array.from(new Set(jobs.map(job => job.jobName))).sort();
+    return names;
+  }, [jobs]);
+
+  const uniqueStatuses = useMemo(() => {
+    const statuses = Array.from(new Set(jobs.map(job => job.status))).sort();
+    return statuses;
+  }, [jobs]);
 
   const filteredAndSortedJobs = useMemo(() => {
     let filtered = jobs;
 
-    if (filter) {
-      filtered = jobs.filter(job =>
-        job.jobName.toLowerCase().includes(filter.toLowerCase()) ||
-        job.status.toLowerCase().includes(filter.toLowerCase())
+    // Apply search filter
+    if (searchFilter) {
+      filtered = filtered.filter(job =>
+        job.jobName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        job.status.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        job.errorSummary.toLowerCase().includes(searchFilter.toLowerCase())
       );
+    }
+
+    // Apply job name filter
+    if (jobNameFilter) {
+      filtered = filtered.filter(job => job.jobName === jobNameFilter);
+    }
+
+    // Apply status filter
+    if (statusFilter) {
+      filtered = filtered.filter(job => job.status === statusFilter);
     }
 
     return filtered.sort((a, b) => {
@@ -37,7 +62,7 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [jobs, filter, sortField, sortDirection]);
+  }, [jobs, searchFilter, jobNameFilter, statusFilter, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -81,16 +106,77 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Job Executions</h3>
-        <div className="mt-2">
-          <input
-            type="text"
-            placeholder="Filter by job name or status..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Job Executions</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Job Name Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Job Name
+            </label>
+            <select
+              value={jobNameFilter}
+              onChange={(e) => setJobNameFilter(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Job Names</option>
+              {uniqueJobNames.map((jobName) => (
+                <option key={jobName} value={jobName}>
+                  {jobName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Statuses</option>
+              {uniqueStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        {/* Clear Filters Button */}
+        {(searchFilter || jobNameFilter || statusFilter) && (
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                setSearchFilter('');
+                setJobNameFilter('');
+                setStatusFilter('');
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
       </div>
       
       <div className="overflow-x-auto">
