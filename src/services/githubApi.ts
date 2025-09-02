@@ -96,12 +96,13 @@ class GitHubApiService {
   private extractJobName(fullJobName: string): string {
     console.log('Extracting job name from:', fullJobName);
     
-    // Pattern 1: Matrix jobs with parentheses - e.g., "build (python-3.9, ubuntu-latest)"
-    const matrixMatch = fullJobName.match(/^[^(]*\(([^)]+)\)/);
+    // Pattern 1: Matrix jobs with parentheses - extract ONLY the first parameter
+    // e.g., "build (python-3.9, ubuntu-latest)" → "python-3.9"
+    const matrixMatch = fullJobName.match(/\(([^,)]+)/);
     if (matrixMatch) {
-      const extracted = matrixMatch[1].trim();
-      console.log('Matrix pattern match:', extracted);
-      return extracted;
+      const firstParam = matrixMatch[1].trim();
+      console.log('Matrix first parameter extracted:', firstParam);
+      return firstParam;
     }
     
     // Pattern 2: Build jobs with specific format - e.g., "build-component-name"
@@ -131,14 +132,12 @@ class GitHubApiService {
       return extracted;
     }
     
-    // Pattern 5: Matrix strategy jobs - e.g., "test (3.9, ubuntu-latest)" 
-    const generalMatrixMatch = fullJobName.match(/^([^(]+)\s*\(([^)]+)\)/);
-    if (generalMatrixMatch) {
-      const jobType = generalMatrixMatch[1].trim();
-      const matrixVars = generalMatrixMatch[2].trim();
-      const extracted = `${jobType} (${matrixVars})`;
-      console.log('General matrix match:', extracted);
-      return extracted;
+    // Pattern 5: For any other jobs with parentheses, extract first parameter
+    const anyParenthesesMatch = fullJobName.match(/\(([^,)]+)/);
+    if (anyParenthesesMatch) {
+      const firstParam = anyParenthesesMatch[1].trim();
+      console.log('Any parentheses first parameter:', firstParam);
+      return firstParam;
     }
     
     console.log('No pattern match, using original:', fullJobName);
