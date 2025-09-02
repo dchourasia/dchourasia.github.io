@@ -57,12 +57,23 @@ class GitHubApiService {
   async getWorkflowRuns(dateRange?: DateRange, page = 1, perPage = 100): Promise<GitHubApiResponse<WorkflowRun>> {
     let url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_NAME}.yaml/runs?page=${page}&per_page=${perPage}`;
     
-    if (dateRange) {
-      const createdQuery = `created:${dateRange.start.toISOString().split('T')[0]}..${dateRange.end.toISOString().split('T')[0]}`;
-      url += `&created=${encodeURIComponent(createdQuery)}`;
-    }
+    // Temporarily disable date filtering to see all runs
+    // if (dateRange) {
+    //   const createdQuery = `created:${dateRange.start.toISOString().split('T')[0]}..${dateRange.end.toISOString().split('T')[0]}`;
+    //   url += `&created=${encodeURIComponent(createdQuery)}`;
+    //   console.log('Date range query:', createdQuery);
+    // }
+    
+    console.log('Fetching workflow runs without date filter from:', url);
 
-    return this.makeRequest<GitHubApiResponse<WorkflowRun>>(url);
+    const result = await this.makeRequest<GitHubApiResponse<WorkflowRun>>(url);
+    console.log('Workflow runs response:', {
+      total_count: result.total_count,
+      runs_count: result.workflow_runs?.length,
+      first_run: result.workflow_runs?.[0]
+    });
+    
+    return result;
   }
 
   async getJobsForRun(runId: number): Promise<GitHubApiResponse<Job>> {
@@ -102,12 +113,20 @@ class GitHubApiService {
     const workflowRuns = await this.getWorkflowRuns(dateRange);
     const processedJobs: ProcessedJob[] = [];
 
+    console.log(`Processing ${workflowRuns.workflow_runs?.length || 0} workflow runs`);
+
     for (const run of workflowRuns.workflow_runs || []) {
       try {
         const jobsResponse = await this.getJobsForRun(run.id);
-        const buildJobs = (jobsResponse.jobs || []).filter(job => 
+        console.log(`Run ${run.id}: Found ${jobsResponse.jobs?.length || 0} total jobs`);
+        
+        const allJobs = jobsResponse.jobs || [];
+        console.log('All job names:', allJobs.map(j => j.name));
+        
+        const buildJobs = allJobs.filter(job => 
           job.name.toLowerCase().includes('build')
         );
+        console.log(`Filtered to ${buildJobs.length} build jobs:`, buildJobs.map(j => j.name));
 
         for (const job of buildJobs) {
           const processedJob: ProcessedJob = {
@@ -125,6 +144,7 @@ class GitHubApiService {
       }
     }
 
+    console.log(`Final processed jobs count: ${processedJobs.length}`);
     return processedJobs;
   }
 
