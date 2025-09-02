@@ -2,8 +2,8 @@ import axios from 'axios';
 import { WorkflowRun, Job, GitHubApiResponse, ProcessedJob, DateRange } from '../types';
 
 const GITHUB_API_BASE = 'https://api.github.com';
-const REPO_OWNER = 'opendatahub-io';
-const REPO_NAME = 'odh-data-service-rhods';
+const REPO_OWNER = 'red-hat-data-services';
+const REPO_NAME = 'rhods-devops-infra';
 const WORKFLOW_NAME = 'upstream-auto-merge';
 
 class GitHubApiService {

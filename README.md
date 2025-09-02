@@ -52,7 +52,7 @@ npm start
 ## Configuration
 
 The application is configured to analyze the following workflow:
-- **Repository**: `opendatahub-io/odh-data-service-rhods`
+- **Repository**: `red-hat-data-services/rhods-devops-infra`
 - **Workflow**: `upstream-auto-merge.yml`
 
 To analyze different workflows, modify the constants in `src/services/githubApi.ts`:
