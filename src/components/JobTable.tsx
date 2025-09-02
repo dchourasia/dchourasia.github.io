@@ -12,44 +12,9 @@ type SortDirection = 'asc' | 'desc';
 const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
   const [sortField, setSortField] = useState<SortField>('executionDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [searchFilter, setSearchFilter] = useState('');
-  const [jobNameFilter, setJobNameFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
 
-  // Get unique job names and statuses for dropdown options
-  const uniqueJobNames = useMemo(() => {
-    const names = Array.from(new Set(jobs.map(job => job.jobName))).sort();
-    return names;
-  }, [jobs]);
-
-  const uniqueStatuses = useMemo(() => {
-    const statuses = Array.from(new Set(jobs.map(job => job.status))).sort();
-    return statuses;
-  }, [jobs]);
-
-  const filteredAndSortedJobs = useMemo(() => {
-    let filtered = jobs;
-
-    // Apply search filter
-    if (searchFilter) {
-      filtered = filtered.filter(job =>
-        job.jobName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        job.status.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        job.errorSummary.toLowerCase().includes(searchFilter.toLowerCase())
-      );
-    }
-
-    // Apply job name filter
-    if (jobNameFilter) {
-      filtered = filtered.filter(job => job.jobName === jobNameFilter);
-    }
-
-    // Apply status filter
-    if (statusFilter) {
-      filtered = filtered.filter(job => job.status === statusFilter);
-    }
-
-    return filtered.sort((a, b) => {
+  const sortedJobs = useMemo(() => {
+    return jobs.sort((a, b) => {
       let aValue: string | Date = a[sortField];
       let bValue: string | Date = b[sortField];
 
@@ -62,7 +27,7 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [jobs, searchFilter, jobNameFilter, statusFilter, sortField, sortDirection]);
+  }, [jobs, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -105,79 +70,6 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
 
   return (
     <div className="bg-white shadow rounded-lg">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Job Executions</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Job Name Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Job Name
-            </label>
-            <select
-              value={jobNameFilter}
-              onChange={(e) => setJobNameFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Job Names</option>
-              {uniqueJobNames.map((jobName) => (
-                <option key={jobName} value={jobName}>
-                  {jobName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Statuses</option>
-              {uniqueStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Clear Filters Button */}
-        {(searchFilter || jobNameFilter || statusFilter) && (
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                setSearchFilter('');
-                setJobNameFilter('');
-                setStatusFilter('');
-              }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        )}
-      </div>
       
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -222,7 +114,7 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredAndSortedJobs.map((job, index) => (
+            {sortedJobs.map((job, index) => (
               <tr key={`${job.workflowRunId}-${job.jobName}-${index}`} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <a
@@ -251,9 +143,9 @@ const JobTable: React.FC<JobTableProps> = ({ jobs, loading = false }) => {
         </table>
       </div>
       
-      {filteredAndSortedJobs.length === 0 && (
+      {sortedJobs.length === 0 && (
         <div className="px-6 py-4 text-center text-gray-500">
-          No jobs found matching the current filters.
+          No jobs to display.
         </div>
       )}
     </div>

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import GitHubApiService from '../services/githubApi';
 import { ProcessedJob, DateRange } from '../types';
 import { getDefaultDateRange } from '../utils/dateUtils';
+import { useJobFilters } from '../hooks/useJobFilters';
 import JobTable from './JobTable';
 import Charts from './Charts';
 import DateRangePicker from './DateRangePicker';
+import FilterControls from './FilterControls';
 
 const WorkflowAnalyzer: React.FC = () => {
   const [jobs, setJobs] = useState<ProcessedJob[]>([]);
@@ -14,6 +16,9 @@ const WorkflowAnalyzer: React.FC = () => {
   const [githubToken, setGithubToken] = useState<string>('');
   const [apiService, setApiService] = useState<GitHubApiService | null>(null);
   const [activeTab, setActiveTab] = useState<'table' | 'charts'>('table');
+
+  // Use shared filtering logic
+  const filterControls = useJobFilters(jobs);
 
   useEffect(() => {
     // Try to initialize with environment token first
@@ -189,36 +194,42 @@ const WorkflowAnalyzer: React.FC = () => {
             )}
 
             {jobs.length > 0 && (
-              <div className="mb-6">
-                <div className="border-b border-gray-200">
-                  <nav className="-mb-px flex space-x-8">
-                    <button
-                      onClick={() => setActiveTab('table')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'table'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Job Table
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('charts')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'charts'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Charts & Analytics
-                    </button>
-                  </nav>
+              <>
+                {/* Filter Controls */}
+                <FilterControls {...filterControls} />
+
+                {/* Tab Navigation */}
+                <div className="mb-6">
+                  <div className="border-b border-gray-200">
+                    <nav className="-mb-px flex space-x-8">
+                      <button
+                        onClick={() => setActiveTab('table')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                          activeTab === 'table'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        Job Table ({filterControls.filteredJobs.length})
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('charts')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                          activeTab === 'charts'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        Charts & Analytics ({filterControls.filteredJobs.length})
+                      </button>
+                    </nav>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
-            {activeTab === 'table' && <JobTable jobs={jobs} loading={loading} />}
-            {activeTab === 'charts' && <Charts jobs={jobs} />}
+            {activeTab === 'table' && <JobTable jobs={filterControls.filteredJobs} loading={loading} />}
+            {activeTab === 'charts' && <Charts jobs={filterControls.filteredJobs} />}
 
             {!loading && jobs.length === 0 && (
               <div className="bg-white shadow rounded-lg p-8 text-center">
