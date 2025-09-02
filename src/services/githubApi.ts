@@ -14,6 +14,13 @@ class GitHubApiService {
     // Check for environment variable first, then use provided token
     this.token = token || process.env.REACT_APP_GITHUB_TOKEN || '';
     
+    console.log('GitHubApiService initialized with:', {
+      providedToken: !!token,
+      envToken: !!process.env.REACT_APP_GITHUB_TOKEN,
+      finalToken: !!this.token,
+      tokenLength: this.token.length
+    });
+    
     this.baseHeaders = {
       'Accept': 'application/vnd.github.v3+json',
     };
@@ -26,11 +33,22 @@ class GitHubApiService {
 
   private async makeRequest<T>(url: string): Promise<T> {
     try {
+      console.log('Making request to:', url);
+      console.log('Headers:', this.baseHeaders);
+      console.log('Token available:', !!this.token);
+      
       const response = await axios.get(url, { headers: this.baseHeaders });
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(`GitHub API error: ${error.response?.status} - ${error.response?.statusText}`);
+        console.error('GitHub API Error Details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: url,
+          headers: this.baseHeaders
+        });
+        throw new Error(`GitHub API error: ${error.response?.status} - ${error.response?.statusText || 'Unknown error'}`);
       }
       throw error;
     }
