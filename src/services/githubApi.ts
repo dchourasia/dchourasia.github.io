@@ -57,20 +57,32 @@ class GitHubApiService {
   async getWorkflowRuns(dateRange?: DateRange, page = 1, perPage = 100): Promise<GitHubApiResponse<WorkflowRun>> {
     let url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_NAME}.yaml/runs?page=${page}&per_page=${perPage}`;
     
-    // Temporarily disable date filtering to see all runs
-    // if (dateRange) {
-    //   const createdQuery = `created:${dateRange.start.toISOString().split('T')[0]}..${dateRange.end.toISOString().split('T')[0]}`;
-    //   url += `&created=${encodeURIComponent(createdQuery)}`;
-    //   console.log('Date range query:', createdQuery);
-    // }
+    if (dateRange) {
+      // GitHub API expects ISO format: YYYY-MM-DDTHH:MM:SSZ
+      const startDate = dateRange.start.toISOString();
+      const endDate = dateRange.end.toISOString();
+      
+      // Use created parameter with proper format: >=start_date <=end_date
+      url += `&created=${encodeURIComponent(`>=${startDate} <=${endDate}`)}`;
+      
+      console.log('Date range query:', {
+        start: startDate,
+        end: endDate,
+        query: `>=${startDate} <=${endDate}`
+      });
+    }
     
-    console.log('Fetching workflow runs without date filter from:', url);
+    console.log('Fetching workflow runs from:', url);
 
     const result = await this.makeRequest<GitHubApiResponse<WorkflowRun>>(url);
     console.log('Workflow runs response:', {
       total_count: result.total_count,
       runs_count: result.workflow_runs?.length,
-      first_run: result.workflow_runs?.[0]
+      first_run: result.workflow_runs?.[0],
+      date_range: dateRange ? {
+        start: dateRange.start.toISOString(),
+        end: dateRange.end.toISOString()
+      } : 'no filter'
     });
     
     return result;
@@ -115,32 +127,54 @@ class GitHubApiService {
 
     console.log(`Processing ${workflowRuns.workflow_runs?.length || 0} workflow runs`);
 
-    for (const run of workflowRuns.workflow_runs || []) {
-      try {
-        const jobsResponse = await this.getJobsForRun(run.id);
-        console.log(`Run ${run.id}: Found ${jobsResponse.jobs?.length || 0} total jobs`);
-        
-        const allJobs = jobsResponse.jobs || [];
-        console.log('All job names:', allJobs.map(j => j.name));
-        
-        const buildJobs = allJobs.filter(job => 
-          job.name.toLowerCase().includes('build')
-        );
-        console.log(`Filtered to ${buildJobs.length} build jobs:`, buildJobs.map(j => j.name));
+    // Process runs in smaller batches to avoid overwhelming the API
+    const runs = workflowRuns.workflow_runs || [];
+    const batchSize = 5; // Process 5 runs at a time
+    
+    for (let i = 0; i < runs.length; i += batchSize) {
+      const batch = runs.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(runs.length/batchSize)}`);
+      
+      const batchPromises = batch.map(async (run) => {
+        try {
+          const jobsResponse = await this.getJobsForRun(run.id);
+          console.log(`Run ${run.id}: Found ${jobsResponse.jobs?.length || 0} total jobs`);
+          
+          const allJobs = jobsResponse.jobs || [];
+          
+          // Log job names only for first few runs to avoid console spam
+          if (i < 10) {
+            console.log('All job names:', allJobs.map(j => j.name));
+          }
+          
+          const buildJobs = allJobs.filter(job => 
+            job.name.toLowerCase().includes('build')
+          );
+          
+          if (i < 10) {
+            console.log(`Filtered to ${buildJobs.length} build jobs:`, buildJobs.map(j => j.name));
+          }
 
-        for (const job of buildJobs) {
-          const processedJob: ProcessedJob = {
+          return buildJobs.map(job => ({
             jobName: this.extractJobName(job.name),
             executionDate: new Date(job.started_at).toLocaleDateString(),
             jobUrl: job.html_url,
             status: job.conclusion || job.status,
             errorSummary: this.getErrorSummary(job),
             workflowRunId: run.id,
-          };
-          processedJobs.push(processedJob);
+          }));
+        } catch (error) {
+          console.error(`Error fetching jobs for run ${run.id}:`, error);
+          return [];
         }
-      } catch (error) {
-        console.error(`Error fetching jobs for run ${run.id}:`, error);
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(jobs => processedJobs.push(...jobs));
+      
+      // Small delay between batches to be respectful to the API
+      if (i + batchSize < runs.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
