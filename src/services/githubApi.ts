@@ -94,16 +94,54 @@ class GitHubApiService {
   }
 
   private extractJobName(fullJobName: string): string {
-    const buildMatch = fullJobName.match(/build[^(]*\(([^)]+)\)/i);
+    console.log('Extracting job name from:', fullJobName);
+    
+    // Pattern 1: Matrix jobs with parentheses - e.g., "build (python-3.9, ubuntu-latest)"
+    const matrixMatch = fullJobName.match(/^[^(]*\(([^)]+)\)/);
+    if (matrixMatch) {
+      const extracted = matrixMatch[1].trim();
+      console.log('Matrix pattern match:', extracted);
+      return extracted;
+    }
+    
+    // Pattern 2: Build jobs with specific format - e.g., "build-component-name"
+    const buildMatch = fullJobName.match(/^build[-_](.+)/i);
     if (buildMatch) {
-      return buildMatch[1].trim();
+      const extracted = buildMatch[1].trim();
+      console.log('Build pattern match:', extracted);
+      return extracted;
     }
     
-    const simpleMatch = fullJobName.match(/build[\s-]*(.*)/i);
-    if (simpleMatch) {
-      return simpleMatch[1].trim() || fullJobName;
+    // Pattern 3: Jobs with "build" keyword - e.g., "Build Container Image"
+    const buildKeywordMatch = fullJobName.match(/build\s+(.+)/i);
+    if (buildKeywordMatch) {
+      const extracted = buildKeywordMatch[1].trim();
+      console.log('Build keyword match:', extracted);
+      return extracted;
     }
     
+    // Pattern 4: Jobs that contain "build" anywhere
+    if (fullJobName.toLowerCase().includes('build')) {
+      // Remove common prefixes and suffixes
+      let extracted = fullJobName
+        .replace(/^(job_|task_|step_)/i, '')
+        .replace(/(_job|_task|_step)$/i, '')
+        .trim();
+      console.log('Contains build match:', extracted);
+      return extracted;
+    }
+    
+    // Pattern 5: Matrix strategy jobs - e.g., "test (3.9, ubuntu-latest)" 
+    const generalMatrixMatch = fullJobName.match(/^([^(]+)\s*\(([^)]+)\)/);
+    if (generalMatrixMatch) {
+      const jobType = generalMatrixMatch[1].trim();
+      const matrixVars = generalMatrixMatch[2].trim();
+      const extracted = `${jobType} (${matrixVars})`;
+      console.log('General matrix match:', extracted);
+      return extracted;
+    }
+    
+    console.log('No pattern match, using original:', fullJobName);
     return fullJobName;
   }
 
@@ -147,15 +185,27 @@ class GitHubApiService {
             console.log('All job names:', allJobs.map(j => j.name));
           }
           
-          const buildJobs = allJobs.filter(job => 
-            job.name.toLowerCase().includes('build')
-          );
+          // Filter jobs based on various patterns (not just "build")
+          const relevantJobs = allJobs.filter(job => {
+            const jobName = job.name.toLowerCase();
+            return (
+              jobName.includes('build') ||
+              jobName.includes('test') ||
+              jobName.includes('deploy') ||
+              jobName.includes('lint') ||
+              jobName.includes('check') ||
+              jobName.includes('validate') ||
+              jobName.match(/\([^)]+\)/) || // Matrix jobs with parentheses
+              jobName.includes('matrix') ||
+              jobName.includes('strategy')
+            );
+          });
           
           if (i < 10) {
-            console.log(`Filtered to ${buildJobs.length} build jobs:`, buildJobs.map(j => j.name));
+            console.log(`Filtered to ${relevantJobs.length} relevant jobs:`, relevantJobs.map(j => j.name));
           }
 
-          return buildJobs.map(job => ({
+          return relevantJobs.map(job => ({
             jobName: this.extractJobName(job.name),
             executionDate: new Date(job.started_at).toLocaleDateString(),
             jobUrl: job.html_url,
