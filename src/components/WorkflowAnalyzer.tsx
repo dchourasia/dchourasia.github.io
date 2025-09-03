@@ -13,7 +13,7 @@ const WorkflowAnalyzer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange(30));
-  const [fetchStatusFilter, setFetchStatusFilter] = useState<string>('');
+  const [jobStatusFilter, setJobStatusFilter] = useState<string>('');
   const [githubToken, setGithubToken] = useState<string>('');
   const [apiService, setApiService] = useState<GitHubApiService | null>(null);
   const [activeTab, setActiveTab] = useState<'table' | 'charts'>('table');
@@ -62,7 +62,7 @@ const WorkflowAnalyzer: React.FC = () => {
     try {
       const fetchOptions: FetchOptions = {
         dateRange,
-        status: fetchStatusFilter || undefined
+        jobStatus: jobStatusFilter || undefined
       };
       const data = await apiService.getProcessedJobs(fetchOptions);
       setJobs(data);
@@ -169,8 +169,8 @@ const WorkflowAnalyzer: React.FC = () => {
             <DateRangePicker 
               dateRange={dateRange} 
               onChange={handleDateRangeChange}
-              statusFilter={fetchStatusFilter}
-              onStatusChange={setFetchStatusFilter}
+              jobStatusFilter={jobStatusFilter}
+              onJobStatusChange={setJobStatusFilter}
             />
             
             <div className="mt-6">

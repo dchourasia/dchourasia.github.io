@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { WorkflowRun, Job, GitHubApiResponse, ProcessedJob, DateRange, FetchOptions } from '../types';
+import { WorkflowRun, Job, GitHubApiResponse, ProcessedJob, FetchOptions } from '../types';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const REPO_OWNER = 'red-hat-data-services';
@@ -70,12 +70,6 @@ class GitHubApiService {
         end: endDate,
         query: `>=${startDate} <=${endDate}`
       });
-    }
-
-    if (options?.status) {
-      // Add status filter to API call
-      url += `&status=${encodeURIComponent(options.status)}`;
-      console.log('Status filter:', options.status);
     }
     
     console.log('Fetching workflow runs from:', url);
@@ -188,7 +182,7 @@ class GitHubApiService {
           }
           
           // Filter jobs based on various patterns (not just "build")
-          const relevantJobs = allJobs.filter(job => {
+          let relevantJobs = allJobs.filter(job => {
             const jobName = job.name.toLowerCase();
             return (
               jobName.includes('build') ||
@@ -202,6 +196,14 @@ class GitHubApiService {
               jobName.includes('strategy')
             );
           });
+          
+          // Apply job status filter if specified
+          if (options?.jobStatus) {
+            relevantJobs = relevantJobs.filter(job => {
+              const jobStatus = job.conclusion || job.status;
+              return jobStatus === options.jobStatus;
+            });
+          }
           
           if (i < 10) {
             console.log(`Filtered to ${relevantJobs.length} relevant jobs:`, relevantJobs.map(j => j.name));

@@ -57,7 +57,7 @@ export interface FilterOptions {
 
 export interface FetchOptions {
   dateRange?: DateRange;
-  status?: string;
+  jobStatus?: string;
 }
 
 export interface ChartData {
