@@ -55,6 +55,11 @@ export interface FilterOptions {
   dateRange?: DateRange;
 }
 
+export interface FetchOptions {
+  dateRange?: DateRange;
+  status?: string;
+}
+
 export interface ChartData {
   name: string;
   value: number;

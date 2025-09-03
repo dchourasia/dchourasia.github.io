@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import GitHubApiService from '../services/githubApi';
-import { ProcessedJob, DateRange } from '../types';
+import { ProcessedJob, DateRange, FetchOptions } from '../types';
 import { getDefaultDateRange } from '../utils/dateUtils';
 import { useJobFilters } from '../hooks/useJobFilters';
 import JobTable from './JobTable';
@@ -13,6 +13,7 @@ const WorkflowAnalyzer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange(30));
+  const [fetchStatusFilter, setFetchStatusFilter] = useState<string>('');
   const [githubToken, setGithubToken] = useState<string>('');
   const [apiService, setApiService] = useState<GitHubApiService | null>(null);
   const [activeTab, setActiveTab] = useState<'table' | 'charts'>('table');
@@ -59,7 +60,11 @@ const WorkflowAnalyzer: React.FC = () => {
     setError(null);
 
     try {
-      const data = await apiService.getProcessedJobs(dateRange);
+      const fetchOptions: FetchOptions = {
+        dateRange,
+        status: fetchStatusFilter || undefined
+      };
+      const data = await apiService.getProcessedJobs(fetchOptions);
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
@@ -161,7 +166,12 @@ const WorkflowAnalyzer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
-            <DateRangePicker dateRange={dateRange} onChange={handleDateRangeChange} />
+            <DateRangePicker 
+              dateRange={dateRange} 
+              onChange={handleDateRangeChange}
+              statusFilter={fetchStatusFilter}
+              onStatusChange={setFetchStatusFilter}
+            />
             
             <div className="mt-6">
               <button

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { WorkflowRun, Job, GitHubApiResponse, ProcessedJob, DateRange } from '../types';
+import { WorkflowRun, Job, GitHubApiResponse, ProcessedJob, DateRange, FetchOptions } from '../types';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const REPO_OWNER = 'red-hat-data-services';
@@ -54,13 +54,13 @@ class GitHubApiService {
     }
   }
 
-  async getWorkflowRuns(dateRange?: DateRange, page = 1, perPage = 100): Promise<GitHubApiResponse<WorkflowRun>> {
+  async getWorkflowRuns(options?: FetchOptions, page = 1, perPage = 100): Promise<GitHubApiResponse<WorkflowRun>> {
     let url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_NAME}.yaml/runs?page=${page}&per_page=${perPage}`;
     
-    if (dateRange) {
+    if (options?.dateRange) {
       // GitHub API expects ISO format: YYYY-MM-DDTHH:MM:SSZ
-      const startDate = dateRange.start.toISOString();
-      const endDate = dateRange.end.toISOString();
+      const startDate = options.dateRange.start.toISOString();
+      const endDate = options.dateRange.end.toISOString();
       
       // Use created parameter with proper format: >=start_date <=end_date
       url += `&created=${encodeURIComponent(`>=${startDate} <=${endDate}`)}`;
@@ -71,6 +71,12 @@ class GitHubApiService {
         query: `>=${startDate} <=${endDate}`
       });
     }
+
+    if (options?.status) {
+      // Add status filter to API call
+      url += `&status=${encodeURIComponent(options.status)}`;
+      console.log('Status filter:', options.status);
+    }
     
     console.log('Fetching workflow runs from:', url);
 
@@ -79,10 +85,7 @@ class GitHubApiService {
       total_count: result.total_count,
       runs_count: result.workflow_runs?.length,
       first_run: result.workflow_runs?.[0],
-      date_range: dateRange ? {
-        start: dateRange.start.toISOString(),
-        end: dateRange.end.toISOString()
-      } : 'no filter'
+      filters: options || 'no filters'
     });
     
     return result;
@@ -158,8 +161,8 @@ class GitHubApiService {
     return job.conclusion || 'Unknown error';
   }
 
-  async getProcessedJobs(dateRange?: DateRange): Promise<ProcessedJob[]> {
-    const workflowRuns = await this.getWorkflowRuns(dateRange);
+  async getProcessedJobs(options?: FetchOptions): Promise<ProcessedJob[]> {
+    const workflowRuns = await this.getWorkflowRuns(options);
     const processedJobs: ProcessedJob[] = [];
 
     console.log(`Processing ${workflowRuns.workflow_runs?.length || 0} workflow runs`);
@@ -231,13 +234,13 @@ class GitHubApiService {
     return processedJobs;
   }
 
-  async getAllWorkflowData(dateRange?: DateRange): Promise<{
+  async getAllWorkflowData(options?: FetchOptions): Promise<{
     workflowRuns: WorkflowRun[];
     processedJobs: ProcessedJob[];
   }> {
     const [workflowRunsResponse, processedJobs] = await Promise.all([
-      this.getWorkflowRuns(dateRange),
-      this.getProcessedJobs(dateRange)
+      this.getWorkflowRuns(options),
+      this.getProcessedJobs(options)
     ]);
 
     return {

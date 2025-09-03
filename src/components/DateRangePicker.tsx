@@ -5,9 +5,11 @@ import { formatDate } from '../utils/dateUtils';
 interface DateRangePickerProps {
   dateRange: DateRange;
   onChange: (dateRange: DateRange) => void;
+  statusFilter: string;
+  onStatusChange: (status: string) => void;
 }
 
-const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange }) => {
+const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange, statusFilter, onStatusChange }) => {
   const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newStart = new Date(event.target.value);
     onChange({ ...dateRange, start: newStart });
@@ -27,7 +29,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange }
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Date Range</h3>
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Fetch Options</h3>
       
       <div className="space-y-4">
         <div className="flex space-x-4">
@@ -56,6 +58,28 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange }
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="fetch-status" className="block text-sm font-medium text-gray-700 mb-1">
+            Workflow Status (Server Filter)
+          </label>
+          <select
+            id="fetch-status"
+            value={statusFilter}
+            onChange={(e) => onStatusChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Workflow Statuses</option>
+            <option value="completed">Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="queued">Queued</option>
+            <option value="requested">Requested</option>
+            <option value="waiting">Waiting</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Filter workflows by status before fetching job data
+          </p>
         </div>
         
         <div>
