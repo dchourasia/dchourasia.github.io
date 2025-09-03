@@ -90,7 +90,7 @@ const WorkflowAnalyzer: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white shadow rounded-lg p-8 max-w-md w-full">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            GitHub Workflow Analyzer
+            Auto-Merge Execution Analyzer
           </h2>
           <p className="text-center text-gray-600 mb-6">
             Enter your GitHub token to access workflow data, or try without a token for public repositories.
@@ -139,7 +139,7 @@ const WorkflowAnalyzer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <h1 className="text-3xl font-bold text-gray-900">
-              Workflow Analyzer Dashboard
+              Auto-Merge Execution Analyzer Dashboard
             </h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">

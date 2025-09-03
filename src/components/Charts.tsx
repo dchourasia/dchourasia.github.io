@@ -72,12 +72,43 @@ const Charts: React.FC<ChartsProps> = ({ jobs }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
-          <p className="font-medium">{`${label}`}</p>
+          {label && <p className="font-medium">{`${label}`}</p>}
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }}>
-              {`${entry.name}: ${entry.value}`}
+              {`${entry.name || entry.dataKey}: ${entry.value}`}
             </p>
           ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const PieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
+          <p className="font-medium" style={{ color: data.payload.color }}>
+            {`${data.name}: ${data.value} (${((data.value / jobs.length) * 100).toFixed(1)}%)`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const JobNameTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg max-w-sm z-50">
+          <p className="font-medium text-gray-900 mb-2">Job Details</p>
+          <p className="text-sm text-gray-600 mb-1">Name:</p>
+          <p className="text-sm text-gray-900 break-words font-mono bg-gray-50 p-2 rounded mb-2">{label}</p>
+          <p className="text-sm" style={{ color: data.color }}>
+            <span className="font-medium">Executions:</span> {data.value}
+          </p>
         </div>
       );
     }
@@ -113,19 +144,26 @@ const Charts: React.FC<ChartsProps> = ({ jobs }) => {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<PieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Top 10 Job Names</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={400}>
             <BarChart data={jobNameData} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={80} />
-              <Tooltip content={<CustomTooltip />} />
+              <YAxis 
+                dataKey="name" 
+                type="category" 
+                width={200} 
+                tick={{ fontSize: 11, textAnchor: 'end' }}
+                interval={0}
+                tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 25)}...` : value}
+              />
+              <Tooltip content={<JobNameTooltip />} />
               <Bar dataKey="value" fill="#3B82F6" />
             </BarChart>
           </ResponsiveContainer>

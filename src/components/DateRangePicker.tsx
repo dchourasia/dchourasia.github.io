@@ -32,8 +32,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange, 
       <h3 className="text-lg font-medium text-gray-900 mb-4">Fetch Options</h3>
       
       <div className="space-y-4">
-        <div className="flex space-x-4">
-          <div className="flex-1">
+        <div className="space-y-4">
+          <div>
             <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
               Start Date
             </label>
@@ -46,7 +46,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateRange, onChange, 
             />
           </div>
           
-          <div className="flex-1">
+          <div>
             <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
               End Date
             </label>
