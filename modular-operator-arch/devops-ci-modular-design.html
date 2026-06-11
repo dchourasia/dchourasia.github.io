@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevOps CI Flows — Konflux-Driven Image Updates &amp; Manifest Sync</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #1A4A8A;
+    --tab-active: #1A4A8A;
+    --tab-inactive: #e8eaf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Header */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    padding: 0 2rem;
+  }
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--accent); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Content */
+  .tab-content { padding: 1.5rem 2rem; }
+  .tab-content.hidden { display: none; }
+
+  /* Diagram card */
+  .diagram-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .diagram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+  }
+  .diagram-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .zoom-controls {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .zoom-btn:hover { background: #f0f0f0; }
+  .zoom-level {
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 3rem;
+    text-align: center;
+  }
+  .diagram-container {
+    overflow: auto;
+    position: relative;
+    max-height: 80vh;
+    cursor: grab;
+  }
+  .diagram-container:active { cursor: grabbing; }
+  .diagram-inner {
+    transform-origin: 0 0;
+    transition: transform 0.15s ease;
+    padding: 1.5rem;
+    display: inline-block;
+    min-width: 100%;
+  }
+
+  /* Reference tables */
+  .ref-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .ref-section h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: #f9fafb;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text);
+  }
+  tr:hover td { background: #fafbfc; }
+  .color-chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  code {
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* State machine */
+  .state-machine {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .state-machine pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text);
+  }
+
+  /* Two-column layout */
+  .ref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .ref-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Prevent Mermaid subgraph labels from being clipped */
+  .cluster-label foreignObject {
+    overflow: visible !important;
+  }
+  .cluster-label foreignObject div {
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>DevOps CI Flows</h1>
+    <div class="subtitle">Konflux-Driven Image Updates &amp; Manifest Sync — Interactive DAG Diagrams</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn" onclick="switchTab('modular-e2e-chain')">E2E Modular CI Chain</button>
+  <button class="tab-btn" onclick="switchTab('modular-central-processor')">Central Operator Processor (Modular)</button>
+  <button class="tab-btn" onclick="switchTab('modular-operator-processor')">Modular Operator Processor</button>
+  <button class="tab-btn" onclick="switchTab('modular-bundle-processor')">Bundle Processor (Enhanced)</button>
+  <button class="tab-btn" onclick="switchTab('nudging-alternatives')">Nudging Alternatives</button>
+  <button class="tab-btn" onclick="switchTab('e2e-workflow')">E2E Operator Processor Flow</button>
+  <button class="tab-btn" onclick="switchTab('python-internal-flow')">operator-processor.py Internal Flow</button>
+  <button class="tab-btn" onclick="switchTab('e2e-bundle-workflow')">E2E Bundle Processor Flow</button>
+  <button class="tab-btn" onclick="switchTab('bundle-python-internal-flow')">bundle-processor.py Internal Flow</button>
+  <button class="tab-btn" onclick="switchTab('reference')">Reference</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Modular Tab 1: E2E Modular CI Chain
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modular-e2e-chain" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Modular CI Chain</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('modular-e2e-chain-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="modular-e2e-chain-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('modular-e2e-chain-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('modular-e2e-chain-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('modular-e2e-chain-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="modular-e2e-chain-diagram-container">
+      <div class="diagram-inner" id="modular-e2e-chain-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph M_L1["Level 1: Component Builds"]
+        M_C1["Component Repo<br/>(kserve, vllm, dashboard,<br/>training-operator, etc.)"]
+        M_CK["Konflux Build<br/>Multi-arch image build"]
+        M_C1 -->|"PR merge / push"| M_CK
+    end
+
+    subgraph M_NUDGE1["Nudge: Component → Module"]
+        M_N1_ANNOT["Tekton annotation:<br/><code>build-nudge-files:<br/>build/operator-nudging.yaml</code>"]
+        M_N1_BOT["konflux-internal-p02 bot<br/>Updates module-operator's<br/><code>build/operator-nudging.yaml</code>"]
+        M_N1_MERGE["insta-merge<br/>Auto-merges bot PR<br/>(author + title + path check)"]
+        M_CK --> M_N1_ANNOT --> M_N1_BOT --> M_N1_MERGE
+    end
+
+    subgraph M_L2["Level 2: Module Operator Processing"]
+        M_MOP["modular-operator-processor.yaml<br/>(GitHub Actions in module-operator repo)"]
+
+        subgraph M_MOP_STEPS["Modular Processor Steps"]
+            M_MS1["Sparse checkout:<br/>RBC, utils, module-operator"]
+            M_MS2["operator-processor.py<br/>(4-phase, module-scoped)"]
+            M_MS3["Fetch module's component<br/>manifests (~3-8 repos)"]
+            M_MS4["Commit &amp; push as<br/>Openshift-AI DevOps"]
+            M_MS1 --> M_MS2 --> M_MS3 --> M_MS4
+        end
+
+        M_MOP --> M_MOP_STEPS
+    end
+
+    M_N1_MERGE -->|"Push triggers<br/>modular-operator-processor"| M_MOP
+
+    subgraph M_L2B["Level 2: Module Operator Build"]
+        M_MOB["Module-Operator Tekton Build<br/>CEL: operands-map.yaml.pathChanged()"]
+        M_MOI["Module-operator image<br/><code>quay.io/rhoai/kserve-module-operator</code>"]
+        M_MOB --> M_MOI
+    end
+
+    M_MS4 -->|"operands-map.yaml<br/>path change"| M_MOB
+
+    subgraph M_NUDGE2["Nudge: Module → Central"]
+        M_N2_ANNOT["Tekton annotation:<br/><code>build-nudge-files:<br/>build/operator-nudging.yaml</code><br/>(targets rhods-operator)"]
+        M_N2_BOT["konflux-internal-p02 bot<br/>Updates rhods-operator's<br/><code>build/operator-nudging.yaml</code>"]
+        M_N2_MERGE["insta-merge<br/>in rhods-operator repo"]
+        M_MOI --> M_N2_ANNOT --> M_N2_BOT --> M_N2_MERGE
+    end
+
+    subgraph M_L3["Level 3: Central Operator Processing"]
+        M_COP["operator-processor.yaml<br/>(GitHub Actions in rhods-operator)"]
+
+        subgraph M_COP_STEPS["Central Processor Steps"]
+            M_CS1["Sparse checkout:<br/>RBC, utils, rhods-operator"]
+            M_CS2["operator-processor.py<br/>(4-phase, module-operators only)"]
+            M_CS3["Fetch module-operator<br/>manifests (~5-10 repos)"]
+            M_CS4["Commit &amp; push as<br/>Openshift-AI DevOps"]
+            M_CS1 --> M_CS2 --> M_CS3 --> M_CS4
+        end
+
+        M_COP --> M_COP_STEPS
+    end
+
+    M_N2_MERGE -->|"Push triggers<br/>operator-processor"| M_COP
+
+    subgraph M_L3B["Level 3: Central Operator Build"]
+        M_COB["rhods-operator Tekton Build<br/>CEL: operands-map.yaml.pathChanged()"]
+        M_COI["Operator image<br/><code>quay.io/rhoai/odh-rhel9-operator</code>"]
+        M_COB --> M_COI
+    end
+
+    M_CS4 -->|"operands-map.yaml<br/>path change"| M_COB
+
+    subgraph M_NUDGE3["Nudge: Central → Bundle"]
+        M_N3_ANNOT["Tekton annotation:<br/><code>build-nudge-files:<br/>bundle/bundle-patch.yaml</code><br/>(targets RHOAI-Build-Config)"]
+        M_N3_BOT["konflux-internal-p02 bot<br/>Updates RBC's<br/><code>bundle/bundle-patch.yaml</code>"]
+        M_COI --> M_N3_ANNOT --> M_N3_BOT
+    end
+
+    subgraph M_L4["Level 4: Bundle Processing"]
+        M_BP["bundle-processor.yaml<br/>(GitHub Actions in RHOAI-Build-Config)"]
+
+        subgraph M_BP_STEPS["Bundle Processor Steps"]
+            M_BS1["Fetch rhods-operator metadata<br/>from Quay image labels"]
+            M_BS2["Download central configs<br/>(operands-map, manifests-config)"]
+            M_BS3["NEW: For each module-operator<br/>clone at pinned commit,<br/>read module configs"]
+            M_BS4["Conflict detection:<br/>same image in multiple modules<br/>must have same digest"]
+            M_BS5["Generate bundle build args,<br/>patch CSV, Helm charts,<br/>CEL toggles"]
+            M_BS6["Commit &amp; push"]
+            M_BS1 --> M_BS2 --> M_BS3 --> M_BS4 --> M_BS5 --> M_BS6
+        end
+
+        M_BP --> M_BP_STEPS
+    end
+
+    M_N3_BOT -->|"bundle-patch.yaml<br/>change triggers"| M_BP
+
+    subgraph M_L5["Level 5: Artifact Builds"]
+        M_BB["Bundle Tekton Build<br/><code>odh-operator-bundle</code>"]
+        M_XKS["XKS Helm Chart Build"]
+        M_OCP["OpenShift Helm Chart Build"]
+        M_FBC["FBC Fragment Build<br/>(via catalog-patch nudge)"]
+        M_BS6 --> M_BB & M_XKS & M_OCP
+        M_BB -->|"build-nudge-files"| M_FBC
+    end
+
+    subgraph M_SAFETY["Anti-Loop Safety (at every level)"]
+        direction LR
+        M_SA["Author gating:<br/>trigger on bot,<br/>commit as DevOps"]
+        M_SP["Path gating:<br/>trigger on nudging.yaml,<br/>Tekton on operands-map.yaml"]
+        M_SB["Branch gating:<br/>excluded from main"]
+    end
+
+    style M_L1 fill:#e8f4e8,stroke:#2d7d2d
+    style M_NUDGE1 fill:#fff3e0,stroke:#e65100
+    style M_L2 fill:#e3f2fd,stroke:#1565c0
+    style M_L2B fill:#e3f2fd,stroke:#1565c0
+    style M_NUDGE2 fill:#fff3e0,stroke:#e65100
+    style M_L3 fill:#f3e5f5,stroke:#6a1b9a
+    style M_L3B fill:#f3e5f5,stroke:#6a1b9a
+    style M_NUDGE3 fill:#fff3e0,stroke:#e65100
+    style M_L4 fill:#fce4ec,stroke:#c62828
+    style M_L5 fill:#fff8e1,stroke:#f57f17
+    style M_SAFETY fill:#efebe9,stroke:#4e342e
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f4e8;border-color:#2d7d2d"></span>Green</td><td>Level 1: Component Builds</td><td>Upstream component repos built by Konflux</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Nudge Mechanism</td><td>Konflux nudge + insta-merge at each chain level</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Level 2: Module Operator</td><td>Per-module processing &amp; Tekton build</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Level 3: Central Operator</td><td>Central processor manages module-operators only</td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Level 4: Bundle Processing</td><td>Enhanced multi-repo aggregation + conflict detection</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff8e1;border-color:#f57f17"></span>Yellow</td><td>Level 5: Artifact Builds</td><td>Bundle, Helm charts, FBC fragment</td></tr>
+      <tr><td><span class="color-chip" style="background:#efebe9;border-color:#4e342e"></span>Brown</td><td>Safety Mechanisms</td><td>Author, path, and branch gating at every level</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Modular Tab 2: Central Operator Processor (Modular)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modular-central-processor" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Central Operator Processor (Modular)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('modular-central-processor-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="modular-central-processor-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('modular-central-processor-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('modular-central-processor-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('modular-central-processor-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="modular-central-processor-diagram-container">
+      <div class="diagram-inner" id="modular-central-processor-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph MC_TRIGGER["Trigger"]
+        MC_PUSH["Push to release branch<br/><code>build/operator-nudging.yaml</code> changed<br/>by konflux-internal-p02 bot<br/>(nudge from module-operator build)"]
+        MC_MANUAL["Manual workflow_dispatch"]
+    end
+
+    MC_GUARD{"Guard:<br/>branch != main<br/>AND (dispatch OR bot push)"}
+    MC_PUSH --> MC_GUARD
+    MC_MANUAL --> MC_GUARD
+
+    subgraph MC_CHECKOUT["Steps 1-3: Sparse Checkouts"]
+        MC_CO1["Checkout RHOAI-Build-Config<br/><code>bundle/bundle-patch.yaml</code>"]
+        MC_CO2["Checkout RHOAI-Konflux-Automation<br/><code>utils/processors/*</code>"]
+        MC_CO3["Checkout rhods-operator<br/><code>build/ .tekton/ prefetched-manifests/</code>"]
+    end
+
+    MC_DEPS["Step 4: Install deps (yq, pip)"]
+
+    subgraph MC_PROCESS["Step 5: operator-processor.py (Module-Operators Only)"]
+
+        subgraph MC_P1["Phase 1: Sync from Bundle Patch"]
+            MC_P1_READ["Read <code>patch.relatedImages</code><br/>from bundle-patch.yaml"]
+            MC_P1_FILTER["Filter: keep only entries matching<br/><code>*_MODULE_OPERATOR_*</code> pattern"]
+            MC_P1_SYNC["Sync to operands-map.relatedImages<br/>and operator-nudging.yaml"]
+            MC_P1_READ --> MC_P1_FILTER --> MC_P1_SYNC
+        end
+
+        subgraph MC_P2["Phase 2: Query Quay.io"]
+            MC_P2_LOOP["For each module-operator<br/>in operands-map.relatedImages<br/>(~5-10 images)"]
+            MC_P2_QUAY["Quay API: get latest tag,<br/>verify cosign signature,<br/>extract git.url + git.commit"]
+            MC_P2_COLLECT["Collect latest digests<br/>and git metadata"]
+            MC_P2_LOOP --> MC_P2_QUAY --> MC_P2_COLLECT
+            MC_P2_COLLECT -->|"Next image"| MC_P2_LOOP
+        end
+
+        subgraph MC_P3["Phase 3: Update Configs"]
+            MC_P3_OPMAP["Update operands-map.yaml:<br/>merge latest module-operator<br/>digests (jsonupdate_ng)"]
+            MC_P3_MANIFEST["Update manifests-config.yaml:<br/>set git.url + git.commit<br/>for each module-operator"]
+            MC_P3_OPMAP --> MC_P3_MANIFEST
+        end
+
+        subgraph MC_P4["Phase 4: CEL Toggle"]
+            MC_P4_CEL["Enable/disable push pipeline<br/>CEL expression for<br/>odh-operator Tekton build"]
+        end
+
+        MC_P1 --> MC_P2 --> MC_P3 --> MC_P4
+    end
+
+    subgraph MC_FETCH["Step 7: Fetch Module-Operator Manifests"]
+        MC_F_LOOP["For each module-operator<br/>in manifests-config.map"]
+        MC_F_CLONE["Sparse-checkout module-operator repo<br/>at pinned git.commit"]
+        MC_F_COPY["Copy manifests →<br/><code>prefetched-manifests/{dest}/</code>"]
+        MC_F_LOOP --> MC_F_CLONE --> MC_F_COPY
+        MC_F_COPY -->|"Next module"| MC_F_LOOP
+    end
+
+    MC_COMMIT["Step 8: Commit &amp; push<br/>Author: Openshift-AI DevOps"]
+
+    MC_TEKTON["Tekton CEL triggers on<br/>operands-map.yaml.pathChanged()<br/>→ builds rhods-operator image"]
+
+    MC_GUARD -->|"Pass"| MC_CHECKOUT
+    MC_CHECKOUT --> MC_DEPS --> MC_PROCESS --> MC_FETCH --> MC_COMMIT
+    MC_COMMIT -->|"Push triggers Tekton"| MC_TEKTON
+
+    style MC_TRIGGER fill:#fff3e0,stroke:#e65100
+    style MC_CHECKOUT fill:#e3f2fd,stroke:#1565c0
+    style MC_PROCESS fill:#f3e5f5,stroke:#6a1b9a
+    style MC_P1 fill:#e8f5e9,stroke:#2e7d32
+    style MC_P2 fill:#e1f5fe,stroke:#0288d1
+    style MC_P3 fill:#fff3e0,stroke:#e65100
+    style MC_P4 fill:#fce4ec,stroke:#c62828
+    style MC_FETCH fill:#e0f2f1,stroke:#00695c
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Trigger</td><td>Nudge from module-operator build or manual dispatch</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Sparse Checkouts</td><td>Steps 1&ndash;3: checkout RBC, utils, rhods-operator</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Phase 1: Sync</td><td>Filter for <code>*_MODULE_OPERATOR_*</code> images only</td></tr>
+      <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Phase 2: Quay Query</td><td>Query ~5-10 module-operator images (vs ~160 in monolithic)</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Phase 3: Update Configs</td><td>Update module-operator entries only</td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Phase 4: CEL Toggle</td><td>Enable/disable Tekton push pipeline</td></tr>
+      <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Manifest Fetch</td><td>Fetch module-operator manifests (~5-10 repos, not ~15 components)</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-section">
+    <h3>Key Difference from Monolithic</h3>
+    <table>
+      <tr><th>Aspect</th><th>Monolithic (Current)</th><th>Modular (New)</th></tr>
+      <tr><td><strong>Phase 1 Filter</strong></td><td>Exclude FBC, BUNDLE, ODH_OPERATOR (~160 images)</td><td>Include only <code>*_MODULE_OPERATOR_*</code> (~5-10 images)</td></tr>
+      <tr><td><strong>Phase 2 Quay Queries</strong></td><td>~160 images (10-15 min)</td><td>~5-10 module-operator images (~2-3 min)</td></tr>
+      <tr><td><strong>Phase 3 Config Scope</strong></td><td>~70 components</td><td>~5-10 module-operators</td></tr>
+      <tr><td><strong>Manifest Fetch</strong></td><td>~15 component repos</td><td>~5-10 module-operator repos</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Modular Tab 3: Modular Operator Processor
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modular-operator-processor" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Modular Operator Processor (New Per-Module Workflow)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('modular-operator-processor-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="modular-operator-processor-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('modular-operator-processor-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('modular-operator-processor-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('modular-operator-processor-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="modular-operator-processor-diagram-container">
+      <div class="diagram-inner" id="modular-operator-processor-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph MO_TRIGGER["Trigger (in module-operator repo)"]
+        MO_PUSH["Push to release branch<br/><code>build/operator-nudging.yaml</code> changed<br/>by konflux-internal-p02 bot<br/>(nudge from component build)"]
+        MO_MANUAL["Manual workflow_dispatch"]
+    end
+
+    MO_GUARD{"Guard:<br/>branch != main<br/>AND (dispatch OR bot push)"}
+    MO_PUSH --> MO_GUARD
+    MO_MANUAL --> MO_GUARD
+
+    subgraph MO_CHECKOUT["Steps 1-3: Sparse Checkouts"]
+        MO_CO1["Checkout RHOAI-Build-Config<br/><code>bundle/bundle-patch.yaml</code>"]
+        MO_CO2["Checkout RHOAI-Konflux-Automation<br/><code>utils/processors/*</code>"]
+        MO_CO3["Checkout this module-operator repo<br/><code>build/ .tekton/ prefetched-manifests/</code>"]
+    end
+
+    MO_DEPS["Step 4: Install deps (yq, pip)"]
+
+    subgraph MO_PROCESS["Step 5: operator-processor.py (Module Components Only)"]
+
+        subgraph MO_P1["Phase 1: Sync from Bundle Patch"]
+            MO_P1_READ["Read <code>patch.relatedImages</code><br/>from bundle-patch.yaml"]
+            MO_P1_FILTER["Filter: keep only entries<br/>matching module's component list<br/>(from module's operands-map)"]
+            MO_P1_OPMAP["Update module's<br/>operands-map.relatedImages"]
+            MO_P1_NUDGE["Sync module's<br/>operator-nudging.yaml"]
+            MO_P1_READ --> MO_P1_FILTER
+            MO_P1_FILTER --> MO_P1_OPMAP
+            MO_P1_FILTER --> MO_P1_NUDGE
+        end
+
+        subgraph MO_P2["Phase 2: Query Quay.io"]
+            MO_P2_LOOP["For each component image<br/>in module operands-map<br/>(~5-15 images)"]
+            MO_P2_PARSE["Parse image → extract<br/>component_name, registry, repo"]
+            MO_P2_QUAY["Quay API: resolve tag,<br/>verify cosign signature"]
+            MO_P2_MLIST{"Manifest list?"}
+            MO_P2_ARCH["Get arch-specific digest"]
+            MO_P2_LABELS["Extract git.url + git.commit<br/>from image labels"]
+            MO_P2_COLLECT["Collect: latest_images[],<br/>git_labels_meta{}"]
+
+            MO_P2_LOOP --> MO_P2_PARSE --> MO_P2_QUAY --> MO_P2_MLIST
+            MO_P2_MLIST -->|"Yes"| MO_P2_ARCH --> MO_P2_LABELS
+            MO_P2_MLIST -->|"No"| MO_P2_LABELS
+            MO_P2_LABELS --> MO_P2_COLLECT
+            MO_P2_COLLECT -->|"Next"| MO_P2_LOOP
+        end
+
+        subgraph MO_P3["Phase 3: Update Module Configs"]
+            MO_P3_OPMAP["Update operands-map.yaml<br/>with latest component digests"]
+            MO_P3_MANIFEST["Update manifests-config.yaml<br/>with git.url + git.commit<br/>from Quay image labels"]
+            MO_P3_ADDMETA["Populate additional_meta<br/>for image-only components"]
+            MO_P3_OPMAP --> MO_P3_MANIFEST --> MO_P3_ADDMETA
+        end
+
+        subgraph MO_P4["Phase 4: CEL Toggle"]
+            MO_P4_CEL["Enable/disable push pipeline<br/>CEL expression for<br/>module-operator Tekton build"]
+        end
+
+        MO_P1 --> MO_P2 --> MO_P3 --> MO_P4
+    end
+
+    subgraph MO_FETCH["Step 7: Fetch Module Component Manifests"]
+        MO_F_LOOP["For each component in<br/>module manifests-config.map"]
+        MO_F_BRANCH{"ref_type == branch?"}
+        MO_F_RESOLVE["Resolve HEAD via<br/>git ls-remote"]
+        MO_F_CLONE["Sparse-checkout component<br/>at pinned commit"]
+        MO_F_COPY["Copy src/* →<br/>prefetched-manifests/dest/"]
+
+        MO_F_LOOP --> MO_F_BRANCH
+        MO_F_BRANCH -->|"Yes"| MO_F_RESOLVE --> MO_F_CLONE
+        MO_F_BRANCH -->|"No"| MO_F_CLONE
+        MO_F_CLONE --> MO_F_COPY
+        MO_F_COPY -->|"Next"| MO_F_LOOP
+    end
+
+    MO_COMMIT["Step 8: Commit &amp; push<br/>Author: Openshift-AI DevOps"]
+
+    MO_TEKTON["Module Tekton CEL triggers on<br/>operands-map.yaml.pathChanged()<br/>→ builds module-operator image"]
+
+    MO_NUDGE_UP["Module-operator image built<br/>→ Konflux nudges rhods-operator's<br/>operator-nudging.yaml"]
+
+    MO_GUARD -->|"Pass"| MO_CHECKOUT
+    MO_CHECKOUT --> MO_DEPS --> MO_PROCESS --> MO_FETCH --> MO_COMMIT
+    MO_COMMIT -->|"Push triggers Tekton"| MO_TEKTON
+    MO_TEKTON --> MO_NUDGE_UP
+
+    style MO_TRIGGER fill:#fff3e0,stroke:#e65100
+    style MO_CHECKOUT fill:#e3f2fd,stroke:#1565c0
+    style MO_PROCESS fill:#e8eaf6,stroke:#283593
+    style MO_P1 fill:#e8f5e9,stroke:#2e7d32
+    style MO_P2 fill:#e1f5fe,stroke:#0288d1
+    style MO_P3 fill:#fff3e0,stroke:#e65100
+    style MO_P4 fill:#fce4ec,stroke:#c62828
+    style MO_FETCH fill:#e0f2f1,stroke:#00695c
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Trigger</td><td>Component nudge to module's <code>operator-nudging.yaml</code> or manual dispatch</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Sparse Checkouts</td><td>Steps 1&ndash;3: checkout RBC, utils, this module-operator repo</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Phase 1: Sync</td><td>Filter bundle-patch for module's components only</td></tr>
+      <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Phase 2: Quay Query</td><td>Query ~5-15 module component images</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Phase 3: Update Configs</td><td>Update module's operands-map + manifests-config</td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Phase 4: CEL Toggle</td><td>Enable/disable module's Tekton push pipeline</td></tr>
+      <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Manifest Fetch</td><td>Fetch module's component manifests (~3-8 repos)</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Key: Same Script, Different Scope</h3>
+    <pre>
+The SAME operator-processor.py from RHOAI-Konflux-Automation is reused.
+It is already config-driven — it processes whatever files it is pointed at.
+No code changes needed in the processor itself.
+
+# Module invocation (scoped to module's ~5-15 components):
+python3 operator-processor.py \
+  --operands-map-path   ${MODULE_REPO}/build/operands-map.yaml \
+  --nudging-yaml-path   ${MODULE_REPO}/build/operator-nudging.yaml \
+  --manifest-config-path ${MODULE_REPO}/build/manifests-config.yaml \
+  ...</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Modular Tab 4: Bundle Processor (Enhanced)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modular-bundle-processor" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Bundle Processor (Enhanced for Modular Architecture)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('modular-bundle-processor-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="modular-bundle-processor-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('modular-bundle-processor-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('modular-bundle-processor-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('modular-bundle-processor-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="modular-bundle-processor-diagram-container">
+      <div class="diagram-inner" id="modular-bundle-processor-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph MB_TRIGGER["Trigger"]
+        MB_T1["Push to release branch<br/>(bundle-patch.yaml or<br/>to-be-processed changes)"]
+        MB_T2["Manual workflow_dispatch"]
+    end
+
+    MB_T1 --> MB_GUARD
+    MB_T2 --> MB_GUARD
+    MB_GUARD{"Branch != main?"}
+
+    subgraph MB_SETUP["Steps 1-4: Setup"]
+        MB_S1["Get branch name"]
+        MB_S2["Checkout RHOAI-Build-Config"]
+        MB_S3["Checkout RHOAI-Konflux-Automation"]
+        MB_S4["Install deps"]
+        MB_S1 --> MB_S2 --> MB_S3 --> MB_S4
+    end
+
+    MB_GUARD -->|"Yes"| MB_SETUP
+
+    subgraph MB_BP["bundle-processor.py -- Enhanced bundle-patch Operation"]
+
+        subgraph MB_STEP1["Step 1: Fetch Operator Metadata"]
+            MB_ST1A["Read ODH_OPERATOR from<br/>bundle-patch.yaml"]
+            MB_ST1B["Query Quay.io for<br/>operator image digest"]
+            MB_ST1C["Extract git metadata<br/>(URL + commit SHA)"]
+            MB_ST1A --> MB_ST1B --> MB_ST1C
+        end
+
+        subgraph MB_STEP2["Step 2: Fetch Central Configs"]
+            MB_ST2A["Download <code>operands-map.yaml</code><br/>from rhods-operator<br/>(GitHub raw API at pinned commit)"]
+            MB_ST2B["Download <code>manifests-config.yaml</code><br/>from rhods-operator"]
+            MB_ST2A --> MB_ST2B
+        end
+
+        subgraph MB_STEP2_5["NEW Step 2.5: Fetch Module-Operator Configs"]
+            MB_ST25_LOOP["For each module-operator<br/>in central manifests-config.map"]
+            MB_ST25_GIT["Get git.url + git.commit<br/>from central config"]
+            MB_ST25_CLONE["Clone module-operator repo<br/>at pinned commit<br/>(GitHub raw API)"]
+            MB_ST25_READ["Read module's:<br/>• build/operands-map.yaml<br/>• build/manifests-config.yaml"]
+            MB_ST25_ACCUM["Accumulate into<br/>combined_operands_map<br/>combined_manifests_config"]
+
+            MB_ST25_LOOP --> MB_ST25_GIT --> MB_ST25_CLONE --> MB_ST25_READ --> MB_ST25_ACCUM
+            MB_ST25_ACCUM -->|"Next module"| MB_ST25_LOOP
+        end
+
+        subgraph MB_CONFLICT["Conflict Detection"]
+            MB_CD_CHECK["For each RELATED_IMAGE_* name<br/>across all module operands-maps"]
+            MB_CD_SAME{"Same digest<br/>everywhere?"}
+            MB_CD_OK["Proceed &mdash; shared<br/>component is consistent"]
+            MB_CD_ABORT["ABORT BUILD<br/>List conflicting modules<br/>and digest values"]
+
+            MB_CD_CHECK --> MB_CD_SAME
+            MB_CD_SAME -->|"Yes"| MB_CD_OK
+            MB_CD_SAME -->|"No"| MB_CD_ABORT
+        end
+
+        subgraph MB_STEP3["Step 3: Generate Bundle Build Args"]
+            MB_ST3A["Iterate COMBINED<br/>.map + .additional_meta<br/>from all repos"]
+            MB_ST3B["Write key=value pairs<br/>(~300+ lines with modules)"]
+            MB_ST3A --> MB_ST3B
+        end
+
+        subgraph MB_STEP4["Step 4: Apply Image Replacements"]
+            MB_ST4A["Map quay.io/* →<br/>registry.redhat.io/*<br/>for ALL images"]
+        end
+
+        subgraph MB_STEP5_9["Steps 5-9: Patch CSV, Annotations, Helm, Pipelines, Write"]
+            MB_ST59["Same as current:<br/>• Patch CSV (6 sub-steps)<br/>• Patch annotations<br/>• Patch Helm charts (XKS + OCP)<br/>• Toggle push pipeline CEL<br/>• Write output files<br/><br/>Operating on COMBINED dataset<br/>from central + all modules"]
+        end
+
+        MB_STEP1 --> MB_STEP2 --> MB_STEP2_5 --> MB_CONFLICT
+        MB_CD_OK --> MB_STEP3 --> MB_STEP4 --> MB_STEP5_9
+    end
+
+    subgraph MB_FINALIZE["Steps 6-7: Finalize"]
+        MB_F1["Print debug logs"]
+        MB_F2["Commit &amp; push"]
+    end
+
+    MB_SETUP --> MB_BP --> MB_FINALIZE
+
+    subgraph MB_DOWNSTREAM["Downstream Builds"]
+        MB_D1["Bundle Tekton build"]
+        MB_D2["XKS Helm chart build"]
+        MB_D3["OpenShift Helm chart build"]
+        MB_D4["FBC fragment (nudge)"]
+    end
+
+    MB_F2 --> MB_D1 & MB_D2 & MB_D3
+    MB_D1 --> MB_D4
+
+    style MB_TRIGGER fill:#e1f5fe,stroke:#0288d1
+    style MB_SETUP fill:#f3e5f5,stroke:#7b1fa2
+    style MB_BP fill:#f5f5f5,stroke:#616161
+    style MB_STEP1 fill:#e1f5fe,stroke:#0288d1
+    style MB_STEP2 fill:#e1f5fe,stroke:#0288d1
+    style MB_STEP2_5 fill:#e8f5e9,stroke:#2e7d32
+    style MB_CONFLICT fill:#fce4ec,stroke:#c62828
+    style MB_STEP3 fill:#fff3e0,stroke:#e65100
+    style MB_STEP4 fill:#fff3e0,stroke:#e65100
+    style MB_STEP5_9 fill:#e8eaf6,stroke:#283593
+    style MB_FINALIZE fill:#e8f5e9,stroke:#2e7d32
+    style MB_DOWNSTREAM fill:#fff9c4,stroke:#f9a825
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Steps 1&ndash;2: Fetch Metadata</td><td>Quay query for operator image + download central configs</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>NEW Step 2.5: Module Configs</td><td>Clone each module-operator repo, read module operands-map + manifests-config</td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Conflict Detection</td><td>Abort if same image name has different digests across modules</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Steps 3&ndash;4: Build Args + Replacements</td><td>Generate ~300+ build args from COMBINED data, apply registry mappings</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8eaf6;border-color:#283593"></span>Indigo</td><td>Steps 5&ndash;9: CSV + Helm + Pipelines</td><td>Same as current, operating on combined dataset</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff9c4;border-color:#f9a825"></span>Yellow</td><td>Downstream</td><td>Bundle, Helm charts, FBC fragment builds</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Data Aggregation Priority</h3>
+    <pre>
+Data Type                   Source Priority          Rationale
+─────────                   ───────────────          ─────────
+Module-operator images      Central operands-map     Central processor has latest module-op digests
+Component images            Module operands-map      Module processor has latest component digests
+Component git metadata      Module manifests-config  Module processor resolved these
+Module-operator git meta    Central manifests-config Central processor resolved these</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Modular Tab 5: Nudging Alternatives
+     ═══════════════════════════════════════════════════════════ -->
+<div id="nudging-alternatives" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Nudging Alternatives Comparison</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('nudging-alternatives-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="nudging-alternatives-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('nudging-alternatives-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('nudging-alternatives-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('nudging-alternatives-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="nudging-alternatives-diagram-container">
+      <div class="diagram-inner" id="nudging-alternatives-diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph NA["Option A: Standard Konflux Nudging (Recommended)"]
+        direction TB
+        NA1["Component Build<br/>completes"]
+        NA2["Konflux nudge:<br/>creates PR updating<br/>module's operator-nudging.yaml"]
+        NA3["insta-merge<br/>auto-merges bot PR"]
+        NA4["Push triggers<br/>modular-operator-processor"]
+        NA5["Processor runs<br/>(4-phase + manifest fetch)"]
+        NA6["Commit triggers<br/>module Tekton build"]
+        NA7["Module build completes<br/>→ repeat chain upward"]
+
+        NA1 --> NA2 --> NA3 --> NA4 --> NA5 --> NA6 --> NA7
+    end
+
+    subgraph NB["Option B: Custom Tekton Task Chaining"]
+        direction TB
+        NB1["Component Build<br/>completes"]
+        NB2["Custom Tekton task:<br/>calls GitHub API<br/>workflow_dispatch on<br/>module-operator repo"]
+        NB3["modular-operator-processor<br/>runs immediately<br/>(no PR, no insta-merge)"]
+        NB4["Processor runs<br/>(4-phase + manifest fetch)"]
+        NB5["Commit triggers<br/>module Tekton build"]
+        NB6["Custom task at end:<br/>triggers central processor"]
+
+        NB1 --> NB2 --> NB3 --> NB4 --> NB5 --> NB6
+    end
+
+    subgraph NC["Option C: Combined Insta-Merge + Processor"]
+        direction TB
+        NC1["Component Build<br/>completes"]
+        NC2["Konflux nudge:<br/>creates PR updating<br/>module's operator-nudging.yaml"]
+        NC3["insta-merge intercepts PR:<br/>invokes processor BEFORE merge"]
+        NC4["Processor adds<br/>manifest changes to PR"]
+        NC5["insta-merge merges<br/>the enriched PR"]
+        NC6["Commit triggers<br/>module Tekton build"]
+
+        NC1 --> NC2 --> NC3 --> NC4 --> NC5 --> NC6
+    end
+
+    style NA fill:#e8f5e9,stroke:#2e7d32
+    style NB fill:#e3f2fd,stroke:#1565c0
+    style NC fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Option</th><th>Status</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Option A: Standard Konflux Nudging</td><td><strong>Recommended</strong> &mdash; proven, auditable, no custom infrastructure</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Option B: Custom Tekton Task</td><td>Faster but requires custom task development</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Option C: Combined Insta-Merge</td><td>Atomic PRs but more complex insta-merge logic</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Comparison Matrix</h3>
+      <table>
+        <tr><th>Aspect</th><th>Option A</th><th>Option B</th><th>Option C</th></tr>
+        <tr><td><strong>Latency per level</strong></td><td>~15 min</td><td>~5 min</td><td>~12 min</td></tr>
+        <tr><td><strong>E2E (5 levels)</strong></td><td>~45-60 min</td><td>~20-25 min</td><td>~40-50 min</td></tr>
+        <tr><td><strong>Auditability</strong></td><td>Full git trail (PRs)</td><td>Tekton logs only</td><td>Full git trail (rich PRs)</td></tr>
+        <tr><td><strong>Complexity</strong></td><td>Low (reuses existing)</td><td>High (custom Tekton task)</td><td>Medium (complex insta-merge)</td></tr>
+        <tr><td><strong>Recovery</strong></td><td>Re-run workflow_dispatch</td><td>Manual re-trigger</td><td>Re-run insta-merge</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Trade-off Summary</h3>
+      <table>
+        <tr><th>Factor</th><th>Best Option</th></tr>
+        <tr><td><strong>Speed</strong></td><td>Option B &mdash; no PR overhead, direct dispatch</td></tr>
+        <tr><td><strong>Reliability</strong></td><td>Option A &mdash; proven Konflux mechanism in production</td></tr>
+        <tr><td><strong>Atomicity</strong></td><td>Option C &mdash; single PR = complete state transition</td></tr>
+        <tr><td><strong>Simplicity</strong></td><td>Option A &mdash; zero custom infrastructure needed</td></tr>
+        <tr><td><strong>Debuggability</strong></td><td>Option C &mdash; single PR shows all changes</td></tr>
+        <tr><td><strong>Rollback</strong></td><td>Option A &mdash; revert any individual PR</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Recommendation</h3>
+    <pre>
+Option A (Standard Konflux Nudging) for the initial rollout.
+
+Reasons:
+  • Reuses proven infrastructure already in production
+  • Zero custom development needed
+  • Full git audit trail at every level
+  • The latency increase (~15-20 min additional) is acceptable for CI
+  • The build chain is NOT on the critical path for developer iteration
+
+Option B can be evaluated later as an optimization once modular architecture is stable.</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 1: E2E Operator Processor Workflow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="e2e-workflow" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Operator Processor Workflow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('e2e-workflow-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="e2e-workflow-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('e2e-workflow-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('e2e-workflow-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('e2e-workflow-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="e2e-workflow-diagram-container">
+      <div class="diagram-inner" id="e2e-workflow-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph UPSTREAM["Upstream Component Ecosystem"]
+        CR["Component Repos<br/>(odh-dashboard, kserve, kuberay,<br/>notebooks, training-operator, etc.)"]
+        KB["Konflux Build System"]
+        CR -->|"New image built"| KB
+    end
+
+    subgraph NUDGE["Konflux Nudge Mechanism"]
+        RBC["RHOAI-Build-Config Repo<br/><code>bundle/bundle-patch.yaml</code><br/>updated with new image digests"]
+        KB -->|"Updates bundle-patch.yaml<br/>with new SHA256 digests"| RBC
+
+        TEK_ANNOT["Tekton push pipeline annotation:<br/><code>build-nudge-files: bundle/bundle-patch.yaml</code>"]
+        RBC -->|"Triggers nudge via annotation"| TEK_ANNOT
+
+        BOT["konflux-internal-p02 bot<br/>Creates PR or pushes commit<br/>updating <code>build/operator-nudging.yaml</code><br/>in rhods-operator"]
+        TEK_ANNOT -->|"Konflux detects change"| BOT
+    end
+
+    subgraph PATHS["Two Paths Into Operator Repo"]
+        direction LR
+        PR_PATH["PR Path<br/><code>operator-insta-merge.yaml</code><br/>Auto-merges bot PRs matching:<br/>• Author: konflux-internal-p02 bot<br/>• Title: Update *-vX-Y to hash<br/>• Only changes operator-nudging.yaml"]
+        DIRECT["Direct Push Path<br/>Bot pushes directly<br/>to release branch"]
+    end
+
+    BOT -->|"Creates PR"| PR_PATH
+    BOT -->|"Direct push"| DIRECT
+
+    MERGE_PUSH["Push event on release branch<br/><code>build/operator-nudging.yaml</code> changed<br/>Author: konflux-internal-p02 bot"]
+    PR_PATH -->|"Merge triggers push"| MERGE_PUSH
+    DIRECT --> MERGE_PUSH
+
+    MANUAL["Manual workflow_dispatch<br/>(any user on any release branch)"]
+
+    subgraph GHA["GitHub Actions: operator-processor.yaml"]
+        GUARD{"Guard Condition<br/>branch != main<br/>AND<br/>(workflow_dispatch OR<br/>push by konflux bot)"}
+
+        subgraph CHECKOUT["Step 1-3: Sparse Checkouts"]
+            CO1["Checkout RHOAI-Build-Config<br/><code>bundle/bundle-patch.yaml</code><br/>→ ./RBC"]
+            CO2["Checkout RHOAI-Konflux-Automation<br/><code>utils/processors/*</code><br/>→ ./utils"]
+            CO3["Checkout rhods-operator<br/><code>build/ .tekton/ prefetched-manifests/</code><br/>→ ./rhods-operator"]
+        end
+
+        DEPS["Step 4: Install Dependencies<br/>• yq v4.44.3 (YAML CLI)<br/>• pip install requirements.txt"]
+
+        subgraph PROCESS["Step 5: Execute operator-processor.py"]
+            DERIVE["Derive version variables:<br/><code>rhoai-3.4 → v3.4 → v3-4</code><br/><code>→ odh-operator-v3-4</code>"]
+            INPUTS["Load 5 YAML files:<br/>• bundle-patch.yaml<br/>• operands-map.yaml<br/>• operator-nudging.yaml<br/>• manifests-config.yaml<br/>• *-push.yaml"]
+
+            subgraph PHASE1["Phase 1: Sync from Bundle Patch"]
+                SYNC_READ["Read <code>patch.relatedImages</code><br/>from bundle-patch.yaml"]
+                SYNC_DEDUP["Deduplicate by name<br/>(keep first occurrence)<br/>Sort alphabetically"]
+                SYNC_FILTER["Filter out images matching:<br/>FBC, BUNDLE, ODH_OPERATOR"]
+                SYNC_OPMAP["Replace <code>operands-map.relatedImages</code><br/>with filtered list (deep copy)"]
+                SYNC_NUDGE["Merge into nudging YAML:<br/>• Existing entries: preserve value<br/>• New entries: add from bundle-patch<br/>• Removed entries: drop"]
+                SYNC_READ --> SYNC_DEDUP --> SYNC_FILTER
+                SYNC_FILTER --> SYNC_OPMAP
+                SYNC_FILTER --> SYNC_NUDGE
+            end
+
+            subgraph PHASE2["Phase 2: Query Quay.io"]
+                QUAY_LOOP["For each image in<br/><code>operands-map.relatedImages</code>"]
+                QUAY_PARSE["Parse image value:<br/><code>registry/org/repo@sha256:...</code><br/>Derive component_name<br/>(strip -rhel8/-rhel9 suffix)"]
+                QUAY_TAGS["Quay API: get all tags<br/>matching release branch name<br/>(e.g. <code>rhoai-3.4</code>)"]
+                QUAY_SIG["Verify cosign signature exists<br/>(<code>sha256-xxx.sig</code> tag)"]
+                QUAY_MANIFEST{"Is manifest list?"}
+                QUAY_ARCH["Fetch arch-specific<br/>manifest digest"]
+                QUAY_LABELS["Quay API: get git labels<br/>from image manifest:<br/>• <code>git.url</code><br/>• <code>git.commit</code>"]
+                QUAY_COLLECT["Collect:<br/>• Updated image digest → latest_images<br/>• Git metadata → git_labels_meta"]
+
+                QUAY_LOOP --> QUAY_PARSE --> QUAY_TAGS --> QUAY_SIG
+                QUAY_SIG --> QUAY_MANIFEST
+                QUAY_MANIFEST -->|"Yes"| QUAY_ARCH --> QUAY_LABELS
+                QUAY_MANIFEST -->|"No"| QUAY_LABELS
+                QUAY_LABELS --> QUAY_COLLECT
+                QUAY_COLLECT -->|"Next image"| QUAY_LOOP
+            end
+
+            subgraph PHASE3["Phase 3: Update Config Files"]
+                UPD_OPMAP["Update operands-map.yaml<br/><code>relatedImages</code> with<br/>latest digests from Quay<br/>(jsonupdate_ng merge by name)"]
+                UPD_MANIFEST["Update manifests-config.yaml:<br/>For each component in .map:<br/>• Skip if ref_type=branch<br/>• Set git.url + git.commit<br/>from Quay image labels"]
+                UPD_ADDMETA["Populate additional_meta:<br/>Components in git_labels_meta<br/>but NOT in .map get added<br/>to additional_meta section"]
+            end
+
+            subgraph PHASE4["Phase 4: Process Push Pipeline"]
+                CEL_CHECK{"CEL expression contains<br/><code>non-existent-file</code><br/>disable guard?"}
+                CEL_ENABLE["Remove always-false guard:<br/><code>non-existent-file...pathChanged() &&</code><br/>→ pipeline triggers on push"]
+                CEL_SKIP["Already enabled,<br/>no change needed"]
+            end
+
+            WRITE_OUT["Write output files:<br/>• operator-nudging.yaml<br/>• operands-map.yaml<br/>• manifests-config.yaml<br/>• *-push.yaml (if changed)"]
+
+            DERIVE --> INPUTS
+            INPUTS --> PHASE1
+            PHASE1 --> PHASE2
+            PHASE2 --> PHASE3
+            UPD_OPMAP --> UPD_MANIFEST --> UPD_ADDMETA
+            PHASE3 --> PHASE4
+            CEL_CHECK -->|"Yes"| CEL_ENABLE
+            CEL_CHECK -->|"No"| CEL_SKIP
+            PHASE4 --> WRITE_OUT
+        end
+
+        LOGS1["Step 6: Print debug logs"]
+
+        subgraph FETCH["Step 7: Fetch All Manifests"]
+            LOOP["For each component in<br/><code>manifests-config.yaml .map</code> keys"]
+            BRANCH_CHECK{"ref_type == branch?"}
+            RESOLVE["Resolve HEAD commit SHA<br/>via <code>git ls-remote</code><br/>Update manifests-config.yaml"]
+            SPARSE["Sparse-checkout component:<br/><code>git init → git fetch --depth=1</code><br/>→ checkout specific commit"]
+            COPY["Copy <code>src/*</code> →<br/><code>prefetched-manifests/dest/</code>"]
+
+            LOOP --> BRANCH_CHECK
+            BRANCH_CHECK -->|"Yes"| RESOLVE
+            BRANCH_CHECK -->|"No (pinned commit)"| SPARSE
+            RESOLVE --> SPARSE
+            SPARSE --> COPY
+            COPY -->|"Next component"| LOOP
+        end
+
+        COMMIT["Step 8: Commit & Push<br/>Author: Openshift-AI DevOps<br/>(NOT the Konflux bot — prevents re-trigger)<br/>Message: Updating the operator repo<br/>with latest images and manifests"]
+
+        UPLOAD["Step 9: Upload debug logs<br/>as workflow artifact (30 days)"]
+
+        GUARD -->|"Pass"| CHECKOUT
+        CO1 --> DEPS
+        CO2 --> DEPS
+        CO3 --> DEPS
+        DEPS --> PROCESS
+        PROCESS --> LOGS1
+        LOGS1 --> FETCH
+        FETCH --> COMMIT
+        COMMIT --> UPLOAD
+    end
+
+    MERGE_PUSH --> GUARD
+    MANUAL --> GUARD
+
+    subgraph TEKTON["Tekton Build (Konflux)"]
+        CEL["CEL trigger evaluates:<br/><code>event == push<br/>&& target_branch == rhoai-3.4<br/>&& operands-map.yaml.pathChanged()</code>"]
+        BUILD["PipelineRun: odh-operator-v3-4-on-push<br/>• Multi-arch: x86_64, ppc64le, s390x, arm64<br/>• Hermetic build with prefetch<br/>• Dockerfile: Dockerfiles/Dockerfile.konflux"]
+        PUSH_IMG["Push operator image to<br/><code>quay.io/rhoai/odh-rhel9-operator</code>"]
+
+        CEL --> BUILD --> PUSH_IMG
+    end
+
+    COMMIT -->|"Push triggers<br/>Tekton CEL expression"| CEL
+
+    subgraph SAFETY["Anti-Loop Safety Mechanisms"]
+        S1["Author Gating: workflow requires<br/>author = konflux bot, but commits<br/>as Openshift-AI DevOps"]
+        S2["Path Gating: workflow triggers on<br/>operator-nudging.yaml, Tekton triggers<br/>on operands-map.yaml"]
+        S3["Branch Gating: excluded from main"]
+    end
+
+    style UPSTREAM fill:#e8f4e8,stroke:#2d7d2d
+    style NUDGE fill:#fff3e0,stroke:#e65100
+    style PATHS fill:#e3f2fd,stroke:#1565c0
+    style GHA fill:#f3e5f5,stroke:#6a1b9a
+    style CHECKOUT fill:#fce4ec,stroke:#b71c1c
+    style PROCESS fill:#e8eaf6,stroke:#283593
+    style FETCH fill:#e0f2f1,stroke:#00695c
+    style TEKTON fill:#fff8e1,stroke:#f57f17
+    style SAFETY fill:#efebe9,stroke:#4e342e
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Subgraph</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f4e8;border-color:#2d7d2d"></span>Green</td><td>Upstream Component Ecosystem</td><td>Component repos &amp; Konflux builds</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Konflux Nudge Mechanism</td><td>Bundle-patch updates, bot PRs</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Two Paths Into Operator Repo</td><td>PR path vs direct push</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>GitHub Actions Workflow</td><td>Main <code>operator-processor.yaml</code></td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#b71c1c"></span>Pink</td><td>Sparse Checkouts</td><td>Steps 1&ndash;3: checkout 3 repos</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8eaf6;border-color:#283593"></span>Indigo</td><td>Python Processor</td><td>Step 5: 4-phase processing</td></tr>
+      <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Manifest Fetching</td><td>Step 7: sparse-checkout ~15 component repos</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff8e1;border-color:#f57f17"></span>Yellow</td><td>Tekton Build</td><td>Downstream Konflux pipeline trigger</td></tr>
+      <tr><td><span class="color-chip" style="background:#efebe9;border-color:#4e342e"></span>Brown</td><td>Anti-Loop Safety</td><td>Author, path, and branch gating</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 2: operator-processor.py Internal Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="python-internal-flow" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>operator-processor.py Internal Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('python-internal-flow-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="python-internal-flow-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('python-internal-flow-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('python-internal-flow-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('python-internal-flow-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="python-internal-flow-diagram-container">
+      <div class="diagram-inner" id="python-internal-flow-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph INIT["Initialization"]
+        LOAD["Load 5 YAML files:<br/>bundle-patch.yaml (pyyaml)<br/>operands-map.yaml (ruamel)<br/>operator-nudging.yaml (ruamel)<br/>manifests-config.yaml (ruamel)<br/>push-pipeline.yaml (ruamel)"]
+    end
+
+    subgraph P1["Phase 1: sync_yamls_from_bundle_patch()"]
+        direction TB
+        P1_READ["Read <code>patch.relatedImages</code><br/>from bundle-patch.yaml"]
+        P1_DEDUP["Deduplicate by <code>name</code> key<br/>(keep first occurrence)<br/>Sort alphabetically"]
+        P1_FILTER["Filter out entries matching:<br/><code>FBC</code>, <code>BUNDLE</code>, <code>ODH_OPERATOR</code>"]
+        P1_OPMAP["Replace <code>operands-map.relatedImages</code><br/>with filtered list (deep copy)"]
+        P1_MERGE["Merge into nudging YAML<br/>via jsonupdate_ng<br/>(list patch by <code>name</code> key)"]
+        P1_KEEP["Existing entries:<br/>preserve current <code>value</code><br/>(digest unchanged until Phase 2)"]
+        P1_ADD["New entries:<br/>add with bundle-patch values"]
+        P1_DROP["Missing entries:<br/>removed (offboarded)"]
+
+        P1_READ --> P1_DEDUP --> P1_FILTER
+        P1_FILTER --> P1_OPMAP
+        P1_FILTER --> P1_MERGE
+        P1_MERGE --> P1_KEEP
+        P1_MERGE --> P1_ADD
+        P1_MERGE --> P1_DROP
+    end
+
+    subgraph P2["Phase 2: fetch_latest_images_and_git_metadata()"]
+        direction TB
+        P2_LOOP["For each image in<br/><code>operands-map.relatedImages</code>"]
+        P2_PARSE["Parse image value:<br/><code>quay.io/rhoai/odh-dashboard-rhel9@sha256:...</code><br/>→ registry=quay.io, org=rhoai<br/>→ repo=odh-dashboard-rhel9<br/>→ component_name=odh-dashboard"]
+        P2_TAGS["Quay API: GET tags<br/>matching release branch<br/>(e.g. <code>rhoai-3.4</code>)"]
+        P2_MISSING{"Tag found?"}
+        P2_FAIL1["Add to missing_images<br/>list (will error at end)"]
+        P2_SIG["Verify cosign signature:<br/>Check <code>sha256-xxx.sig</code> tag exists"]
+        P2_MLIST{"Is manifest list?<br/>(multi-arch)"}
+        P2_ARCH["Fetch first arch-specific<br/>manifest digest from list"]
+        P2_LABELS["Quay API: GET labels<br/>from manifest digest"]
+        P2_EXTRACT["Extract:<br/><code>git.url</code> → source repo URL<br/><code>git.commit</code> → build commit SHA"]
+        P2_COLLECT["Collect results:<br/>latest_images[] += updated digest<br/>git_labels_meta[component] += git metadata"]
+        P2_NEXT["Next image"]
+        P2_VALIDATE{"Any missing images<br/>or git labels?"}
+        P2_EXIT["sys.exit(1) with error"]
+        P2_OK["Return (latest_images,<br/>git_labels_meta)"]
+
+        P2_LOOP --> P2_PARSE --> P2_TAGS --> P2_MISSING
+        P2_MISSING -->|"No"| P2_FAIL1
+        P2_MISSING -->|"Yes"| P2_SIG --> P2_MLIST
+        P2_MLIST -->|"Yes"| P2_ARCH --> P2_LABELS
+        P2_MLIST -->|"No"| P2_LABELS
+        P2_LABELS --> P2_EXTRACT --> P2_COLLECT --> P2_NEXT
+        P2_NEXT -->|"More images"| P2_LOOP
+        P2_NEXT -->|"Done"| P2_VALIDATE
+        P2_VALIDATE -->|"Yes"| P2_EXIT
+        P2_VALIDATE -->|"No"| P2_OK
+    end
+
+    subgraph P3["Phase 3: Update Config Files"]
+        direction TB
+        P3_OPMAP["update_operands_map():<br/>Merge latest_images into<br/><code>operands-map.relatedImages</code><br/>via jsonupdate_ng (patch by name)"]
+        P3_MLOOP["update_manifest_config():<br/>For each component in<br/><code>manifests-config.map</code>:"]
+        P3_BRANCH{"ref_type == branch?"}
+        P3_SKIP["Skip<br/>(resolved dynamically<br/>by bash step later)"]
+        P3_GITCHECK{"Component in<br/>git_labels_meta?"}
+        P3_MISSING_C["Add to missing_components<br/>(will error)"]
+        P3_UPDATE["Update:<br/><code>git.url</code> ← from Quay labels<br/><code>git.commit</code> ← from Quay labels"]
+        P3_ADDMETA["Populate additional_meta:<br/>Components in git_labels_meta<br/>but NOT in .map → add to<br/>additional_meta section"]
+        P3_VALIDATE2{"Missing components<br/>or git labels?"}
+        P3_EXIT2["sys.exit(1) with error"]
+        P3_DONE["Config files updated"]
+
+        P3_OPMAP --> P3_MLOOP --> P3_BRANCH
+        P3_BRANCH -->|"Yes"| P3_SKIP
+        P3_BRANCH -->|"No"| P3_GITCHECK
+        P3_GITCHECK -->|"No"| P3_MISSING_C
+        P3_GITCHECK -->|"Yes"| P3_UPDATE
+        P3_SKIP --> P3_ADDMETA
+        P3_UPDATE --> P3_ADDMETA
+        P3_ADDMETA --> P3_VALIDATE2
+        P3_VALIDATE2 -->|"Yes"| P3_EXIT2
+        P3_VALIDATE2 -->|"No"| P3_DONE
+    end
+
+    subgraph P4["Phase 4: process_push_pipeline()"]
+        direction TB
+        P4_READ["Read CEL expression from<br/><code>pipelinesascode.tekton.dev/<br/>on-cel-expression</code> annotation"]
+        P4_CHECK{"Contains disable guard?<br/><code>non-existent-file...</code><br/><code>.pathChanged() &&</code>"}
+        P4_ENABLE["Operation = enable:<br/>Remove always-false guard<br/>→ pipeline triggers normally"]
+        P4_NOOP["Already enabled<br/>(no change needed)"]
+        P4_READ --> P4_CHECK
+        P4_CHECK -->|"Yes + op=enable"| P4_ENABLE
+        P4_CHECK -->|"No + op=enable"| P4_NOOP
+    end
+
+    subgraph WRITE["Write Output Files"]
+        W1["operator-nudging.yaml"]
+        W2["operands-map.yaml"]
+        W3["manifests-config.yaml"]
+        W4["*-push.yaml<br/>(only if CEL changed)"]
+    end
+
+    INIT --> P1 --> P2 --> P3 --> P4 --> WRITE
+
+    style INIT fill:#f5f5f5,stroke:#616161
+    style P1 fill:#e8f5e9,stroke:#2e7d32
+    style P2 fill:#e3f2fd,stroke:#1565c0
+    style P3 fill:#fff3e0,stroke:#e65100
+    style P4 fill:#fce4ec,stroke:#c62828
+    style WRITE fill:#f3e5f5,stroke:#6a1b9a
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#f5f5f5;border-color:#616161"></span>Grey</td><td>Initialization</td><td>Load 5 YAML input files (pyyaml + ruamel)</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Phase 1: Sync from Bundle Patch</td><td><code>sync_yamls_from_bundle_patch()</code> &mdash; dedup, filter, merge relatedImages</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Phase 2: Query Quay.io</td><td><code>fetch_latest_images_and_git_metadata()</code> &mdash; tags, cosign, git labels</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Phase 3: Update Config Files</td><td><code>update_operands_map()</code> + <code>update_manifest_config()</code></td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Phase 4: Process Push Pipeline</td><td><code>process_push_pipeline()</code> &mdash; CEL expression enable/disable</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Write Output Files</td><td>Write updated YAML files back to disk via ruamel</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 3: E2E Bundle Processor Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="e2e-bundle-workflow" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Bundle Processor Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('e2e-bundle-workflow-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="e2e-bundle-workflow-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('e2e-bundle-workflow-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('e2e-bundle-workflow-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('e2e-bundle-workflow-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="e2e-bundle-workflow-diagram-container">
+      <div class="diagram-inner" id="e2e-bundle-workflow-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph BTriggers["Trigger Sources"]
+        BT1["Push to release branch<br/>(bundle/helm patch or<br/>to-be-processed changes)"]
+        BT2["Manual workflow_dispatch"]
+        BT3["trigger-nightly-bundle-build<br/>(updates bundle-patch.yaml<br/>via schedule file)"]
+    end
+
+    BT1 --> BGUARD
+    BT2 --> BGUARD
+    BT3 -.->|"Upstream: updates<br/>bundle-patch.yaml"| BT1
+
+    BGUARD{"Branch != main?"}
+    BGUARD -->|"Yes"| BSETUP
+    BGUARD -->|"No"| BSKIP["Skip execution"]
+
+    subgraph BSETUP["Step 1-4: Setup"]
+        BS1["1. Get branch name<br/>(e.g., rhoai-3.5-ea.2)"]
+        BS2["2. Checkout release branch<br/>(RHOAI-Build-Config)"]
+        BS3["3. Checkout utils repo<br/>(RHOAI-Konflux-Automation)"]
+        BS4["4. Install deps<br/>(yq, findutils, Python)"]
+        BS1 --> BS2 --> BS3 --> BS4
+    end
+
+    subgraph BPROCESS["Step 5: Process Operator Bundle"]
+        BP1["Compute RHOAI_VERSION,<br/>component names"]
+        BP2["Stage raw content to<br/>utils/tmp/bundle &amp; helm"]
+        BP3["Assemble 15+ file paths"]
+        BP4["Invoke bundle-processor.py<br/>-op bundle-patch"]
+        BP5["Sync processed content<br/>back to bundle/ &amp; helm/"]
+        BP1 --> BP2 --> BP3 --> BP4 --> BP5
+    end
+
+    BSETUP --> BPROCESS
+
+    subgraph BCOMMIT["Step 6-7: Finalize"]
+        BC1["6. Print debug logs<br/>(always runs)"]
+        BC2["7. Commit &amp; push<br/>to release branch"]
+        BC1 --> BC2
+    end
+
+    BPROCESS --> BCOMMIT
+
+    subgraph BDETAIL["bundle-processor.py -- bundle-patch Operation"]
+        direction TB
+
+        subgraph BSTEP1["Step 1: Fetch Operator Metadata"]
+            BST1A["Read ODH_OPERATOR entry<br/>from bundle-patch.yaml"]
+            BST1B["Query Quay.io API<br/>for image digest"]
+            BST1C["Extract git metadata<br/>(URL + commit SHA)<br/>from image labels"]
+            BST1A --> BST1B --> BST1C
+        end
+
+        subgraph BSTEP2["Step 2: Fetch Operands Map &amp; Manifest Config"]
+            BST2A["Download operands-map.yaml<br/>from operator repo<br/>(GitHub raw API)"]
+            BST2B["Download manifests-config.yaml<br/>from operator repo"]
+            BST2A --> BST2B
+        end
+
+        subgraph BSTEP3["Step 3: Generate Bundle Build Args"]
+            BST3A["Create bundle_build_args.map<br/>(COMPONENT_GIT_URL=...<br/>COMPONENT_GIT_COMMIT=...)"]
+        end
+
+        subgraph BSTEP4["Step 4: Apply Image Replacements"]
+            BST4A["Read build-config.yaml<br/>registry/repo mappings"]
+            BST4B["Map quay.io/* to<br/>registry.redhat.io/*"]
+            BST4A --> BST4B
+        end
+
+        subgraph BSTEP5["Step 5: Patch CSV YAML"]
+            BST5A["5a: Replace operator image<br/>placeholder in CSV"]
+            BST5B["5b: Set version, name,<br/>createdAt timestamp"]
+            BST5C["5c: Remove olm.skipRange<br/>and spec.replaces"]
+            BST5D["5d: Deep merge<br/>csv-patch.yaml"]
+            BST5E["5e: Merge operand +<br/>additional images,<br/>validate registries,<br/>build relatedImages"]
+            BST5F["5f: Inject env vars +<br/>relatedImages into<br/>deployment spec"]
+            BST5A --> BST5B --> BST5C --> BST5D --> BST5E --> BST5F
+        end
+
+        subgraph BSTEP6["Step 6: Patch Annotations"]
+            BST6A["Remove FBC-managed<br/>channel fields"]
+        end
+
+        subgraph BSTEP7["Step 7: Patch Helm Charts"]
+            BST7A["7a: XKS -- operator image,<br/>relatedImages, cloud images"]
+            BST7B["7b: OpenShift -- set type=rhoai,<br/>compute OLM channel"]
+        end
+
+        subgraph BSTEP8["Step 8: Process Push Pipelines"]
+            BST8A["Enable/disable CEL triggers<br/>in 3 Tekton push pipelines"]
+        end
+
+        subgraph BSTEP9["Step 9: Write Output Files"]
+            BST9A["Write CSV, annotations,<br/>build args, Helm values,<br/>pipeline YAMLs"]
+        end
+
+        BSTEP1 --> BSTEP2 --> BSTEP3 --> BSTEP4 --> BSTEP5
+        BSTEP5 --> BSTEP6 --> BSTEP7 --> BSTEP8 --> BSTEP9
+    end
+
+    BP4 --> BDETAIL
+
+    BQUAY["Quay.io Registry API"]
+    BGHAPI["GitHub Raw API"]
+
+    BST1B <-->|"Image digest + labels"| BQUAY
+    BST2A <-->|"operands-map.yaml"| BGHAPI
+    BST2B <-->|"manifests-config.yaml"| BGHAPI
+
+    subgraph BINPUTS["Input Files"]
+        BI1["bundle/bundle-patch.yaml"]
+        BI2["bundle/csv-patch.yaml"]
+        BI3["bundle/additional-images-patch.yaml"]
+        BI4["config/build-config.yaml"]
+        BI5["helm/xks-values-patch.yaml"]
+        BI6["helm/openshift-values-patch.yaml"]
+        BI7["to-be-processed/bundle/**"]
+        BI8["to-be-processed/helm/**"]
+    end
+
+    BI1 & BI2 & BI3 & BI4 & BI5 & BI6 --> BP4
+    BI7 & BI8 --> BP2
+
+    subgraph BOUTPUTS["Output Files (committed)"]
+        BO1["bundle/manifests/"]
+        BO2["bundle/metadata/"]
+        BO3["bundle/bundle_build_args.map"]
+        BO4["helm/rhai-on-xks-chart/"]
+        BO5["helm/rhai-on-openshift-chart/"]
+        BO6[".tekton/*-push.yaml"]
+    end
+
+    BP5 --> BOUTPUTS
+
+    subgraph BDOWNSTREAM["Downstream: Konflux Pipelines"]
+        BK1["odh-operator-bundle push<br/>(builds bundle image)"]
+        BK2["rhai-on-xks-chart push<br/>(builds XKS chart image)"]
+        BK3["rhai-on-openshift-chart push<br/>(builds OpenShift chart image)"]
+        BK4["FBC catalog nudge<br/>(catalog-patch.yaml)"]
+    end
+
+    BC2 -->|"Push triggers<br/>PipelinesAsCode"| BK1 & BK2 & BK3
+    BK1 -->|"build-nudge-files"| BK4
+
+    style BTriggers fill:#e1f5fe,stroke:#0288d1
+    style BSETUP fill:#f3e5f5,stroke:#7b1fa2
+    style BPROCESS fill:#fff3e0,stroke:#e65100
+    style BCOMMIT fill:#e8f5e9,stroke:#2e7d32
+    style BDETAIL fill:#f5f5f5,stroke:#616161
+    style BSTEP1 fill:#fff3e0,stroke:#e65100
+    style BSTEP2 fill:#fff3e0,stroke:#e65100
+    style BSTEP3 fill:#fff3e0,stroke:#e65100
+    style BSTEP4 fill:#fff3e0,stroke:#e65100
+    style BSTEP5 fill:#fff3e0,stroke:#e65100
+    style BSTEP6 fill:#fff3e0,stroke:#e65100
+    style BSTEP7 fill:#fff3e0,stroke:#e65100
+    style BSTEP8 fill:#fff3e0,stroke:#e65100
+    style BSTEP9 fill:#fff3e0,stroke:#e65100
+    style BINPUTS fill:#e8f5e9,stroke:#2e7d32
+    style BOUTPUTS fill:#ede7f6,stroke:#4527a0
+    style BDOWNSTREAM fill:#fff9c4,stroke:#f9a825
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Subgraph</th></tr>
+      <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Trigger Sources</td><td>Push, manual dispatch, nightly trigger</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#7b1fa2"></span>Purple</td><td>Setup</td><td>Steps 1&ndash;4: checkout repos, install deps</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Processing</td><td>Step 5: bundle-processor.py invocation &amp; 9-step internals</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Finalize / Inputs</td><td>Steps 6&ndash;7: debug logs &amp; commit; input files</td></tr>
+      <tr><td><span class="color-chip" style="background:#ede7f6;border-color:#4527a0"></span>Deep Purple</td><td>Output Files</td><td>Processed bundle, Helm charts, Tekton pipelines</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff9c4;border-color:#f9a825"></span>Yellow</td><td>Downstream</td><td>Konflux pipelines triggered by commit</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 4: bundle-processor.py Internal Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="bundle-python-internal-flow" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>bundle-processor.py Internal Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('bundle-python-internal-flow-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="bundle-python-internal-flow-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('bundle-python-internal-flow-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('bundle-python-internal-flow-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('bundle-python-internal-flow-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="bundle-python-internal-flow-diagram-container">
+      <div class="diagram-inner" id="bundle-python-internal-flow-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph BPInit["Initialization"]
+        BPLoad["Load input files:<br/>bundle-patch.yaml, csv-patch.yaml,<br/>additional-images-patch.yaml,<br/>build-config.yaml, Helm patches"]
+    end
+
+    subgraph BPS1["Step 1: Fetch Operator Metadata"]
+        direction TB
+        BPS1_READ["Read <code>relatedImages</code><br/>from bundle-patch.yaml"]
+        BPS1_FILTER["Filter for <code>ODH_OPERATOR</code> entry<br/>(validate exactly 1 exists)"]
+        BPS1_QUAY["Quay API: resolve tag<br/>to image digest"]
+        BPS1_MLIST{"Is manifest list?<br/>(multi-arch)"}
+        BPS1_ARCH["Resolve to arch-specific<br/>manifest first"]
+        BPS1_GIT["Extract git metadata<br/>from image labels:<br/><code>git.url</code> + <code>git.commit</code>"]
+        BPS1_OUT["Return: operator image entry<br/>+ git metadata dict"]
+
+        BPS1_READ --> BPS1_FILTER --> BPS1_QUAY --> BPS1_MLIST
+        BPS1_MLIST -->|"Yes"| BPS1_ARCH --> BPS1_GIT
+        BPS1_MLIST -->|"No"| BPS1_GIT
+        BPS1_GIT --> BPS1_OUT
+    end
+
+    subgraph BPS2["Step 2: Fetch Operands Map &amp; Manifest Config"]
+        direction TB
+        BPS2_DL1["Download <code>operands-map.yaml</code><br/>from operator repo<br/>(GitHub raw API at pinned commit)"]
+        BPS2_DL2["Download <code>manifests-config.yaml</code><br/>from operator repo"]
+
+        BPS2_DL1 --> BPS2_DL2
+    end
+
+    subgraph BPS3["Step 3: Generate Bundle Build Args"]
+        direction TB
+        BPS3_ITER["Iterate <code>manifests-config</code><br/><code>.map</code> + <code>.additional_meta</code>"]
+        BPS3_WRITE["Write key=value pairs:<br/><code>COMPONENT_GIT_URL=...</code><br/><code>COMPONENT_GIT_COMMIT=...</code><br/>(~218 lines)"]
+
+        BPS3_ITER --> BPS3_WRITE
+    end
+
+    subgraph BPS4["Step 4: Apply Image Replacements"]
+        direction TB
+        BPS4_READ["Read <code>config.replacements</code><br/>from build-config.yaml"]
+        BPS4_MAP["Apply registry mappings:<br/><code>quay.io/rhoai/*</code> →<br/><code>registry.redhat.io/rhoai/*</code>"]
+
+        BPS4_READ --> BPS4_MAP
+    end
+
+    subgraph BPS5["Step 5: Patch CSV YAML (6 sub-steps)"]
+        direction TB
+        BPS5A["5a: Replace <code>REPLACE_IMAGE:v0.0.0-placeholder</code><br/>with production operator digest<br/>in containerImage + deployment"]
+        BPS5B["5b: Set <code>spec.version</code>,<br/><code>metadata.name</code>,<br/><code>createdAt</code> timestamp"]
+        BPS5C["5c: Remove <code>olm.skipRange</code><br/>and <code>spec.replaces</code><br/>(obsolete under FBC)"]
+        BPS5D["5d: Deep merge <code>csv-patch.yaml</code><br/>(arch labels, feature annotations,<br/>provider info, support links)"]
+        BPS5E_MERGE["5e: Merge 3 image sources:<br/>• operands-map images<br/>• bundle-patch images (224+)<br/>• additional-images (52)"]
+        BPS5E_DEDUP["Deduplicate by name<br/>(later overrides earlier)"]
+        BPS5E_STRIP["Strip image tags,<br/>keep only @sha256: digests"]
+        BPS5E_VALID{"Registry allowed?<br/><code>registry.redhat.io</code><br/><code>registry.stage.redhat.io</code>"}
+        BPS5E_ERR["Exit with error:<br/>disallowed registry"]
+        BPS5E_BUILD["Build <code>spec.relatedImages</code><br/>from env vars + annotations"]
+        BPS5F["5f: Inject merged env vars +<br/><code>relatedImages</code> into CSV<br/>deployment spec"]
+
+        BPS5A --> BPS5B --> BPS5C --> BPS5D
+        BPS5D --> BPS5E_MERGE --> BPS5E_DEDUP --> BPS5E_STRIP --> BPS5E_VALID
+        BPS5E_VALID -->|"No"| BPS5E_ERR
+        BPS5E_VALID -->|"Yes"| BPS5E_BUILD --> BPS5F
+    end
+
+    subgraph BPS6["Step 6: Patch Annotations"]
+        BPS6A["Remove deprecated FBC fields:<br/><code>bundle.channels.v1</code><br/><code>bundle.channel.default.v1</code>"]
+    end
+
+    subgraph BPS7["Step 7: Patch Helm Charts"]
+        direction TB
+        BPS7_XKS_CHK{"XKS paths<br/>provided?"}
+        BPS7_XKS["7a: Update XKS patch:<br/>• Set operator image<br/>• Update cloud images<br/>• Replace relatedImages<br/>• Update Chart.yaml version"]
+        BPS7_OCP_CHK{"OpenShift paths<br/>provided?"}
+        BPS7_OCP["7b: Update OpenShift patch:<br/>• Set type=rhoai<br/>• Compute OLM channel<br/>(EA→beta, GA→stable-X.Y)<br/>• Update Chart.yaml version"]
+        BPS7_SKIP1["Skip XKS"]
+        BPS7_SKIP2["Skip OpenShift"]
+
+        BPS7_XKS_CHK -->|"Yes"| BPS7_XKS
+        BPS7_XKS_CHK -->|"No"| BPS7_SKIP1
+        BPS7_XKS --> BPS7_OCP_CHK
+        BPS7_SKIP1 --> BPS7_OCP_CHK
+        BPS7_OCP_CHK -->|"Yes"| BPS7_OCP
+        BPS7_OCP_CHK -->|"No"| BPS7_SKIP2
+    end
+
+    subgraph BPS8["Step 8: Process Push Pipelines"]
+        direction TB
+        BPS8_LOOP["For each of 3 pipelines:<br/>• bundle push<br/>• XKS chart push<br/>• OpenShift chart push"]
+        BPS8_CEL["Read CEL expression from<br/><code>on-cel-expression</code> annotation"]
+        BPS8_OP{"Operation?"}
+        BPS8_EN["Enable: remove<br/><code>non-existent-file</code> guard"]
+        BPS8_DIS["Disable: inject<br/><code>non-existent-file</code> guard"]
+
+        BPS8_LOOP --> BPS8_CEL --> BPS8_OP
+        BPS8_OP -->|"enable"| BPS8_EN
+        BPS8_OP -->|"disable"| BPS8_DIS
+    end
+
+    subgraph BPS9["Step 9: Write Output Files"]
+        direction TB
+        BPS9_CSV["Patched CSV<br/>(manifests/*.yaml)"]
+        BPS9_ANNOT["Patched annotations<br/>(metadata/annotations.yaml)"]
+        BPS9_ARGS["bundle_build_args.map"]
+        BPS9_PIPE["Pipeline YAMLs<br/>(only if modified)"]
+        BPS9_HELM["Helm chart files<br/>(if paths provided)"]
+    end
+
+    BPInit --> BPS1 --> BPS2 --> BPS3 --> BPS4 --> BPS5
+    BPS5 --> BPS6 --> BPS7 --> BPS8 --> BPS9
+
+    BPQUAY["Quay.io Registry API"]
+    BPGH["GitHub Raw API"]
+
+    BPS1_QUAY <-->|"Digest + labels"| BPQUAY
+    BPS2_DL1 <-->|"operands-map.yaml"| BPGH
+    BPS2_DL2 <-->|"manifests-config.yaml"| BPGH
+
+    style BPInit fill:#f5f5f5,stroke:#616161
+    style BPS1 fill:#e1f5fe,stroke:#0288d1
+    style BPS2 fill:#e1f5fe,stroke:#0288d1
+    style BPS3 fill:#e8f5e9,stroke:#2e7d32
+    style BPS4 fill:#fff3e0,stroke:#e65100
+    style BPS5 fill:#fce4ec,stroke:#c62828
+    style BPS6 fill:#f3e5f5,stroke:#6a1b9a
+    style BPS7 fill:#e0f2f1,stroke:#00695c
+    style BPS8 fill:#fff8e1,stroke:#f57f17
+    style BPS9 fill:#e8eaf6,stroke:#283593
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#f5f5f5;border-color:#616161"></span>Grey</td><td>Initialization</td><td>Load input files (bundle-patch, csv-patch, build-config, Helm patches)</td></tr>
+      <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Steps 1&ndash;2: Fetch Metadata</td><td>Query Quay.io for operator image, download operands-map + manifests-config from GitHub</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Step 3: Build Args</td><td>Generate <code>bundle_build_args.map</code> (~218 key=value lines)</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Step 4: Image Replacements</td><td>Map <code>quay.io</code> refs to <code>registry.redhat.io</code></td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Step 5: Patch CSV</td><td>6 sub-steps: image, version, OLM cleanup, csv-patch merge, relatedImages, deployment</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Step 6: Patch Annotations</td><td>Remove deprecated FBC-managed channel fields</td></tr>
+      <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Step 7: Helm Charts</td><td>Patch XKS and OpenShift Helm chart values</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff8e1;border-color:#f57f17"></span>Yellow</td><td>Step 8: Push Pipelines</td><td>Enable/disable CEL triggers in 3 Tekton pipeline YAMLs</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8eaf6;border-color:#283593"></span>Indigo</td><td>Step 9: Write Output</td><td>Write all modified files via ruamel.yaml</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Version Variable Derivation (Bundle)</h3>
+    <pre>
+Branch:     rhoai-3.5-ea.2
+Version:    v3.5-ea.2
+Suffix:     v3-5-ea-2
+Bundle:     odh-operator-bundle-v3-5-ea-2
+XKS Chart:  rhai-on-xks-chart-v3-5-ea-2
+OCP Chart:  rhai-on-openshift-chart-v3-5-ea-2</pre>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Anti-Loop Filter (Bundle Pipeline CEL)</h3>
+    <pre>
+# The bundle pipeline includes an infinite-loop prevention filter:
+files.all.exists(p, !p.matches('^bundle/bundle-patch\\.yaml$'))
+
+# Prevents triggering when ONLY bundle-patch.yaml changes
+# (avoids: bundle-patch change → workflow → commit → pipeline → nudge PR → repeat)</pre>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">OLM Channel Computation (Step 7b)</h3>
+    <pre>
+# EA (Early Access) branch → beta channel:
+rhoai-3.5-ea.2  →  operator.rhoai.olm.channel = "beta"
+
+# GA branch → stable-X.Y channel:
+rhoai-3.5        →  operator.rhoai.olm.channel = "stable-3.5"</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 5: Reference
+     ═══════════════════════════════════════════════════════════ -->
+<div id="reference" class="tab-content">
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Trigger &amp; Guard Condition</h3>
+      <table>
+        <tr><th>Aspect</th><th>Detail</th></tr>
+        <tr><td><strong>Trigger</strong></td><td>Push to <code>rhoai-[23].[0-9]{1,2}</code> branches when <code>build/operator-nudging.yaml</code> changes, OR <code>workflow_dispatch</code> (manual)</td></tr>
+        <tr><td><strong>Guard</strong></td><td><code>branch != main</code> AND (<code>workflow_dispatch</code> OR push by <code>konflux-internal-p02[bot]</code>)</td></tr>
+        <tr><td><strong>Manual</strong></td><td>Any user can trigger on any release branch via <code>workflow_dispatch</code></td></tr>
+        <tr><td><strong>Automated</strong></td><td>Only runs for pushes authored by the Konflux bot &mdash; prevents triggering on human commits</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Anti-Loop Safety Mechanisms</h3>
+      <table>
+        <tr><th>#</th><th>Mechanism</th><th>How It Works</th></tr>
+        <tr><td>1</td><td><strong>Author Gating</strong></td><td>Workflow triggers on commits by <code>konflux-internal-p02[bot]</code>. Commits as <code>Openshift-AI DevOps</code> &mdash; cannot re-trigger itself.</td></tr>
+        <tr><td>2</td><td><strong>Path Gating</strong></td><td>Workflow triggers on <code>operator-nudging.yaml</code>. Tekton CEL triggers on <code>operands-map.yaml</code> &mdash; different files.</td></tr>
+        <tr><td>3</td><td><strong>Branch Gating</strong></td><td>Excluded from <code>main</code> branch entirely.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Workflow Steps Summary</h3>
+    <table>
+      <tr><th>Step</th><th>Name</th><th>Description</th></tr>
+      <tr><td>1</td><td>Checkout RHOAI-Build-Config</td><td>Sparse checkout of <code>bundle/bundle-patch.yaml</code> &rarr; <code>./RBC</code></td></tr>
+      <tr><td>2</td><td>Checkout RHOAI-Konflux-Automation</td><td>Sparse checkout of <code>utils/processors/*</code> &rarr; <code>./utils</code> (always from <code>main</code>)</td></tr>
+      <tr><td>3</td><td>Checkout rhods-operator</td><td>Sparse checkout of <code>build/</code>, <code>prefetched-manifests/</code>, <code>.tekton/</code> &rarr; <code>./rhods-operator</code></td></tr>
+      <tr><td>4</td><td>Install Dependencies</td><td>yq v4.44.3 + <code>pip install requirements.txt</code></td></tr>
+      <tr><td>5</td><td>Execute operator-processor.py</td><td>4-phase Python processing: sync &rarr; Quay query &rarr; update configs &rarr; push pipeline</td></tr>
+      <tr><td>6</td><td>Print Debug Logs</td><td>Print <code>operator-processor.log</code> to console (<code>if: always()</code>)</td></tr>
+      <tr><td>7</td><td>Fetch All Manifests</td><td>Sparse-checkout ~15 component repos into <code>prefetched-manifests/</code></td></tr>
+      <tr><td>8</td><td>Commit &amp; Push</td><td>Commit as <code>Openshift-AI DevOps</code> (not Konflux bot) to prevent re-trigger</td></tr>
+      <tr><td>9</td><td>Upload Debug Logs</td><td>Upload <code>operator-processor.log</code> as artifact (30-day retention, <code>if: always()</code>)</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-section">
+    <h3>Comparison: operator-processor vs trigger-nightly-operator-build</h3>
+    <table>
+      <tr><th>Aspect</th><th>operator-processor</th><th>trigger-nightly</th></tr>
+      <tr><td><strong>Trigger</strong></td><td>Push to <code>operator-nudging.yaml</code> by Konflux bot</td><td>Manual <code>workflow_dispatch</code> only</td></tr>
+      <tr><td><strong>Push pipeline op</strong></td><td><code>enable</code> (auto-trigger on)</td><td><code>disable</code> (auto-trigger off)</td></tr>
+      <tr><td><strong>Extra step</strong></td><td>None</td><td>Writes timestamp to <code>schedule/operator-tekton-trigger.txt</code></td></tr>
+      <tr><td><strong>Purpose</strong></td><td>React to Konflux image updates in real-time</td><td>Manually force a full rebuild with latest manifests without cascading auto-builds</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-section">
+    <h3>External Repos Referenced</h3>
+    <table>
+      <tr><th>Repository</th><th>Branch</th><th>What&rsquo;s Used</th><th>Purpose</th></tr>
+      <tr><td><code>red-hat-data-services/RHOAI-Build-Config</code></td><td>Same release branch</td><td><code>bundle/bundle-patch.yaml</code></td><td>Latest image digests from Konflux</td></tr>
+      <tr><td><code>red-hat-data-services/RHOAI-Konflux-Automation</code></td><td><code>main</code></td><td><code>utils/processors/operator-processor.py</code> + <code>requirements.txt</code></td><td>Python script that processes all YAML files</td></tr>
+      <tr><td><code>red-hat-data-services/rhods-operator</code></td><td>Same release branch</td><td><code>build/</code>, <code>prefetched-manifests/</code>, <code>.tekton/</code></td><td>Operator config files (checked out separately for clean git push)</td></tr>
+      <tr><td>~15 component repos</td><td>Pinned commits or branch HEAD</td><td>Component manifests (CRDs, RBAC, kustomize configs)</td><td>Fetched into <code>prefetched-manifests/</code></td></tr>
+    </table>
+  </div>
+
+  <div class="ref-section">
+    <h3>Key Input Files</h3>
+    <table>
+      <tr><th>File</th><th>Source</th><th>Description</th></tr>
+      <tr><td><code>bundle/bundle-patch.yaml</code></td><td>RHOAI-Build-Config</td><td>Latest built image digests from Konflux. Source of truth for recently built images.</td></tr>
+      <tr><td><code>build/operator-nudging.yaml</code></td><td>rhods-operator</td><td>~163 <code>RELATED_IMAGE_*</code> entries. Triggers the workflow when changed.</td></tr>
+      <tr><td><code>build/operands-map.yaml</code></td><td>rhods-operator</td><td>Component &rarr; git repo/commit mapping + <code>relatedImages</code> list. Two sections: <code>map</code> (15 primary) and <code>additional_meta</code> (60+ secondary).</td></tr>
+      <tr><td><code>build/manifests-config.yaml</code></td><td>rhods-operator</td><td>Manifest fetch config (git URLs, commits, src/dest paths). Includes optional <code>ref_type: branch</code>.</td></tr>
+      <tr><td><code>.tekton/*-push.yaml</code></td><td>rhods-operator</td><td>Tekton PipelineRun with CEL trigger expression and multi-arch build parameters.</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-section">
+    <h3>Component Source Repos (Step 7 Manifest Fetch)</h3>
+    <table>
+      <tr><th>Component</th><th>Source Repo</th><th>Src Path</th><th>Dest Path</th></tr>
+      <tr><td><code>notebooks</code></td><td><code>red-hat-data-services/notebooks</code></td><td><code>manifests/</code></td><td><code>workbenches/notebooks</code></td></tr>
+      <tr><td><code>odh-kserve-controller</code></td><td><code>red-hat-data-services/kserve</code></td><td><code>config/</code></td><td><code>kserve</code></td></tr>
+      <tr><td><code>odh-kf-notebook-controller</code></td><td><code>red-hat-data-services/kubeflow</code></td><td><code>components/notebook-controller/config/</code></td><td><code>workbenches/kf-notebook-controller</code></td></tr>
+      <tr><td><code>odh-notebook-controller</code></td><td><code>red-hat-data-services/kubeflow</code></td><td><code>components/odh-notebook-controller/config/</code></td><td><code>workbenches/odh-notebook-controller</code></td></tr>
+      <tr><td><code>odh-data-science-pipelines-operator</code></td><td><code>red-hat-data-services/data-science-pipelines-operator</code></td><td><code>config/</code></td><td><code>datasciencepipelines</code></td></tr>
+      <tr><td><code>odh-kuberay-operator</code></td><td><code>red-hat-data-services/kuberay</code></td><td><code>ray-operator/config/</code></td><td><code>ray</code></td></tr>
+      <tr><td><code>odh-trustyai-service-operator</code></td><td><code>red-hat-data-services/trustyai-service-operator</code></td><td><code>config/</code></td><td><code>trustyai</code></td></tr>
+      <tr><td><code>odh-model-controller</code></td><td><code>red-hat-data-services/odh-model-controller</code></td><td><code>config/</code></td><td><code>modelcontroller</code></td></tr>
+      <tr><td><code>odh-model-registry-operator</code></td><td><code>red-hat-data-services/model-registry-operator</code></td><td><code>config/</code></td><td><code>modelregistry</code></td></tr>
+      <tr><td><code>odh-dashboard</code></td><td><code>red-hat-data-services/odh-dashboard</code></td><td><code>manifests/</code></td><td><code>dashboard</code></td></tr>
+      <tr><td><code>odh-training-operator</code></td><td><code>red-hat-data-services/training-operator</code></td><td><code>manifests/</code></td><td><code>trainingoperator</code></td></tr>
+      <tr><td><code>odh-feast-operator</code></td><td><code>red-hat-data-services/feast</code></td><td><code>infra/feast-operator/config/</code></td><td><code>feastoperator</code></td></tr>
+      <tr><td><code>odh-llama-stack-k8s-operator</code></td><td><code>red-hat-data-services/llama-stack-k8s-operator</code></td><td><code>config/</code></td><td><code>llamastackoperator</code></td></tr>
+      <tr><td><code>odh-trainer</code></td><td><code>red-hat-data-services/trainer</code></td><td><code>config/</code></td><td><code>trainer</code></td></tr>
+      <tr><td><code>odh-mlflow-operator</code></td><td><code>red-hat-data-services/mlflow-operator</code></td><td><code>config/</code></td><td><code>mlflowoperator</code></td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Version Variable Derivation</h3>
+    <pre>
+Branch name:  rhoai-3.4
+
+  RHOAI_VERSION           = v3.4
+  COMPONENT_SUFFIX        = v3-4
+  ODH_OPERATOR_COMPONENT  = odh-operator-v3-4
+  PUSH_PIPELINE_PATH      = .tekton/odh-operator-v3-4-push.yaml</pre>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">CEL Expression Toggle (Push Pipeline)</h3>
+    <pre>
+# Disabled (always false — nightly mode):
+"non-existent-file.non-existent-ext".pathChanged() && event == "push" && target_branch == "rhoai-3.4" && ...
+
+# Enabled (normal — operator-processor mode):
+event == "push" && target_branch == "rhoai-3.4" && ...</pre>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 30,
+      padding: 12,
+    },
+    securityLevel: 'loose',
+  });
+
+  await mermaid.run();
+
+  const defined = ['modular-e2e-chain','modular-central-processor','modular-operator-processor','modular-bundle-processor','nudging-alternatives','e2e-workflow','python-internal-flow','e2e-bundle-workflow','bundle-python-internal-flow','reference'];
+  const hashTab = location.hash.replace('#','');
+  const initial = defined.includes(hashTab) ? hashTab : 'modular-e2e-chain';
+  document.querySelectorAll('.tab-content').forEach(el => {
+    if (el.id !== initial) el.classList.add('hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + initial + "'"));
+  });
+</script>
+
+<script>
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.remove('hidden');
+    event.target.classList.add('active');
+    history.replaceState(null, '', '#' + tabId);
+  }
+  window.switchTab = switchTab;
+
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.replace('#','');
+    if (document.getElementById(tab)) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tab + "'"));
+      });
+      document.getElementById(tab).classList.remove('hidden');
+    }
+  });
+
+  // ── Zoom state ────────────────────────────────────────────
+  const zoomState = {};
+
+  function getZoom(id) {
+    if (!zoomState[id]) zoomState[id] = { scale: 1 };
+    return zoomState[id];
+  }
+
+  function applyZoom(id) {
+    const state = getZoom(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transform = `scale(${state.scale})`;
+    const label = document.getElementById(id + '-level');
+    if (label) label.textContent = Math.round(state.scale * 100) + '%';
+  }
+
+  function zoom(id, direction) {
+    const state = getZoom(id);
+    const factor = direction > 0 ? 1.2 : 1 / 1.2;
+    state.scale = Math.max(0.1, Math.min(5, state.scale * factor));
+    applyZoom(id);
+  }
+  window.zoom = zoom;
+
+  function resetZoom(id) {
+    const state = getZoom(id);
+    state.scale = 1;
+    applyZoom(id);
+    const container = document.getElementById(id + '-container');
+    if (container) { container.scrollLeft = 0; container.scrollTop = 0; }
+  }
+  window.resetZoom = resetZoom;
+
+  function fitToWidth(id) {
+    const container = document.getElementById(id + '-container');
+    const inner = document.getElementById(id);
+    if (!container || !inner) return;
+    const state = getZoom(id);
+    state.scale = 1;
+    inner.style.transform = `scale(1)`;
+    const contentW = inner.scrollWidth;
+    const viewW = container.clientWidth - 32;
+    if (contentW > 0) {
+      state.scale = Math.max(0.1, Math.min(2, viewW / contentW));
+    }
+    applyZoom(id);
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+  }
+  window.fitToWidth = fitToWidth;
+
+  // ── Mouse-wheel zoom ─────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    container.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const inner = container.querySelector('.diagram-inner');
+      if (!inner) return;
+      const id = inner.id;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      zoom(id, direction);
+    }, { passive: false });
+  });
+
+  // ── Click-drag panning ────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    let isDragging = false, startX, startY, scrollL, scrollT;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      startX = e.pageX - container.offsetLeft;
+      startY = e.pageY - container.offsetTop;
+      scrollL = container.scrollLeft;
+      scrollT = container.scrollTop;
+      container.style.cursor = 'grabbing';
+    });
+
+    container.addEventListener('mouseleave', () => { isDragging = false; container.style.cursor = 'grab'; });
+    container.addEventListener('mouseup', () => { isDragging = false; container.style.cursor = 'grab'; });
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const y = e.pageY - container.offsetTop;
+      container.scrollLeft = scrollL - (x - startX);
+      container.scrollTop = scrollT - (y - startY);
+    });
+  });
+</script>
+
+</body>
+</html>

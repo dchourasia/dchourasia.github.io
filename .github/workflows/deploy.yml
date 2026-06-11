@@ -46,6 +46,7 @@ jobs:
         mkdir -p _site/auto-merge-analyzer-dashboard
         cp -r auto-merge-analyzer-dashboard/build/* _site/auto-merge-analyzer-dashboard/
         cp -r adlc-design _site/adlc-design
+        cp -r modular-operator-arch _site/modular-operator-arch
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
