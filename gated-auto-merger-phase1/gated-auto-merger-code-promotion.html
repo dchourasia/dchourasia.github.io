@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gated Auto-Merger Phase 1 &mdash; Code Promotion</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #1A4A8A;
+    --tab-active: #1A4A8A;
+    --tab-inactive: #e8eaf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Header */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    padding: 0 2rem;
+  }
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--accent); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Content */
+  .tab-content { padding: 1.5rem 2rem; }
+  .tab-content.hidden { display: none; }
+
+  /* Diagram card */
+  .diagram-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .diagram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+  }
+  .diagram-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .zoom-controls {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .zoom-btn:hover { background: #f0f0f0; }
+  .zoom-level {
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 3rem;
+    text-align: center;
+  }
+  .diagram-container {
+    overflow: auto;
+    position: relative;
+    max-height: 80vh;
+    cursor: grab;
+  }
+  .diagram-container:active { cursor: grabbing; }
+  .diagram-inner {
+    transform-origin: 0 0;
+    transition: transform 0.15s ease;
+    padding: 1.5rem;
+    display: inline-block;
+    min-width: 100%;
+  }
+
+  /* Reference tables */
+  .ref-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .ref-section h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: #f9fafb;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text);
+  }
+  tr:hover td { background: #fafbfc; }
+  .color-chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  code {
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* State machine */
+  .state-machine {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .state-machine pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text);
+  }
+
+  /* Two-column layout */
+  .ref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .ref-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Prevent Mermaid subgraph labels from being clipped */
+  .cluster-label foreignObject {
+    overflow: visible !important;
+  }
+  .cluster-label foreignObject div {
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Gated Auto-Merger &mdash; Phase 1: Code Promotion</h1>
+    <div class="subtitle">Combined PR Gate + Single TFA with Early-Gate Group Testing &mdash; Interactive DAG Diagrams</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn" onclick="switchTab('e2e-gated-auto-merger')">E2E Gated Auto-Merger</button>
+  <button class="tab-btn" onclick="switchTab('early-gate-pipeline')">Early-Gate Pipeline</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 1: E2E Gated Auto-Merger Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="e2e-gated-auto-merger" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Gated Auto-Merger Flow (Phase 1 &mdash; Code Promotion)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('e2e-gated-auto-merger-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="e2e-gated-auto-merger-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('e2e-gated-auto-merger-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('e2e-gated-auto-merger-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('e2e-gated-auto-merger-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="e2e-gated-auto-merger-diagram-container">
+      <div class="diagram-inner" id="e2e-gated-auto-merger-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph UPSTREAM["Upstream Code Flow"]
+        ODH["ODH Community Repos<br/>(upstream open-source)"]
+        RHDS_MAIN["RHDS main branch<br/>(downstream mirror,<br/>continuous sync from ODH)"]
+        ODH -->|"Midstream sync"| RHDS_MAIN
+    end
+
+    subgraph COMP1["Component 1: Centralized PR Creator"]
+        CRON["Nightly Cron<br/>2 AM UTC"]
+        PR_CREATE["Create sync PRs<br/>per component repo<br/>(RHDS main &rarr; RHDS stable)"]
+        CRON --> PR_CREATE
+    end
+
+    RHDS_MAIN --> CRON
+
+    subgraph COMP2["Component 2: PR Build Monitor"]
+        MONITOR["Watch all sync PRs<br/>for build completion"]
+        BARRIER["Sync barrier:<br/>wait for ALL component<br/>PR builds to pass"]
+        MONITOR --> BARRIER
+    end
+
+    PR_CREATE --> MONITOR
+
+    subgraph COMP3["Component 3: Leader PR Manager"]
+        LEADER_PR["Create / update<br/>Leader PR in<br/>RHOAI-Build-Config"]
+        LEADER_BRANCH["Branch:<br/><code>gated-auto-merge-leader</code><br/>targeting <code>main</code>"]
+        EARLY_TRIGGER["Trigger early-gate<br/>pipeline via Leader PR"]
+        LEADER_PR --> LEADER_BRANCH --> EARLY_TRIGGER
+    end
+
+    BARRIER -->|"All builds pass"| LEADER_PR
+
+    subgraph EARLY_GATE["Early-Gate Testing"]
+        SNAPSHOT["Generate group snapshot<br/>(all component digests)"]
+        OP_BUILD["Build operator<br/>from main"]
+        BUNDLE_BUILD["Build bundle"]
+        FBC_BUILD["Build FBC"]
+        JENKINS["Jenkins smoke tests<br/>(early-gate group)"]
+        SNAPSHOT --> OP_BUILD --> BUNDLE_BUILD --> FBC_BUILD --> JENKINS
+    end
+
+    EARLY_TRIGGER --> SNAPSHOT
+
+    subgraph COMP4["Component 4: Merge Orchestrator"]
+        CLASSIFY["3-tier test<br/>classification"]
+        SELECTIVE["Selective merge<br/>based on test results"]
+        MERGE_STABLE["Merge to<br/>RHDS stable branch<br/>(regular merge, not squash)"]
+        CLASSIFY --> SELECTIVE --> MERGE_STABLE
+    end
+
+    JENKINS -->|"Test results"| CLASSIFY
+
+    subgraph RELEASE_PROMO["Release Branch Promotion"]
+        SOURCE_MAP["Read<br/><code>main-release-source-map.yaml</code>"]
+        RELEASE_MERGE["Merge stable &rarr;<br/>release branches<br/>(rhoai-3.6, rhoai-3.6-ea.1, etc.)"]
+        SOURCE_MAP --> RELEASE_MERGE
+    end
+
+    MERGE_STABLE --> SOURCE_MAP
+
+    subgraph RELEASE_BUILD["Release Branch Build Chain"]
+        PUSH_BUILD["Push builds triggered<br/>on release branches"]
+        NUDGE_CHAIN["Normal nudge chain:<br/>component &rarr; operator<br/>&rarr; bundle &rarr; FBC"]
+        PUSH_BUILD --> NUDGE_CHAIN
+    end
+
+    RELEASE_MERGE -->|"Code merge triggers<br/>push builds"| PUSH_BUILD
+
+    RELEASE_IMG(["Release images<br/>in Quay registry"])
+    NUDGE_CHAIN --> RELEASE_IMG
+
+    style UPSTREAM fill:#e8f4e8,stroke:#2d7d2d
+    style COMP1 fill:#e3f2fd,stroke:#1565c0
+    style COMP2 fill:#fff3e0,stroke:#e65100
+    style COMP3 fill:#f3e5f5,stroke:#6a1b9a
+    style EARLY_GATE fill:#fce4ec,stroke:#c62828
+    style COMP4 fill:#e0f2f1,stroke:#00695c
+    style RELEASE_PROMO fill:#e8eaf6,stroke:#283593
+    style RELEASE_BUILD fill:#fff8e1,stroke:#f57f17
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f4e8;border-color:#2d7d2d"></span>Green</td><td>Upstream Code Flow</td><td>ODH &rarr; RHDS main continuous sync</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Centralized PR Creator</td><td>Nightly cron creates sync PRs to stable</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>PR Build Monitor</td><td>Sync barrier waiting for all builds</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Leader PR Manager</td><td>Weekly leader PR triggers early-gate</td></tr>
+      <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Early-Gate Testing</td><td>Snapshot &rarr; operator &rarr; bundle &rarr; FBC &rarr; Jenkins</td></tr>
+      <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Merge Orchestrator</td><td>Selective merge via 3-tier classification</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8eaf6;border-color:#283593"></span>Indigo</td><td>Release Promotion</td><td>Stable &rarr; release branches via source map</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff8e1;border-color:#f57f17"></span>Yellow</td><td>Release Build Chain</td><td>Normal nudge chain on release branches</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Branch Flow Overview</h3>
+    <pre>
+ODH (upstream)
+  |
+  v  (midstream sync)
+RHDS main (downstream mirror, continuous)
+  |
+  v  (nightly gated sync PRs)
+RHDS stable (permanent, protected, gated nightly merges)
+  |
+  v  (after early-gate passes, via main-release-source-map.yaml)
+RHDS release branches (rhoai-3.6, rhoai-3.6-ea.1, etc.)
+  |
+  v  (push builds &rarr; normal nudge chain)
+Release images in Quay</pre>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 4: Early-Gate Testing Pipeline
+     ═══════════════════════════════════════════════════════════ -->
+<div id="early-gate-pipeline" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Early-Gate Testing Pipeline Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('early-gate-pipeline-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="early-gate-pipeline-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('early-gate-pipeline-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('early-gate-pipeline-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('early-gate-pipeline-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="early-gate-pipeline-diagram-container">
+      <div class="diagram-inner" id="early-gate-pipeline-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph TRIGGER["Pipeline Trigger"]
+        LP_PUSH["Leader PR push to<br/><code>gated-auto-merge-leader</code><br/>branch in RHOAI-Build-Config"]
+        PAC["PaC / Tekton detects<br/>push event on Leader PR"]
+        LP_PUSH --> PAC
+    end
+
+    subgraph SNAPSHOT["Step 1: Generate Group Snapshot"]
+        READ_DIGEST["Read component digest map<br/>from Leader PR"]
+        CHANGED["Changed components:<br/>use PR-specific image tags<br/>(built from sync PR)"]
+        UNCHANGED["Unchanged components:<br/>use latest y-stream tags<br/>(e.g., <code>rhoai-3.6-ea.1</code>)"]
+        COMBINE["Combine into group<br/>snapshot manifest<br/>(all component digests)"]
+        READ_DIGEST --> CHANGED
+        READ_DIGEST --> UNCHANGED
+        CHANGED --> COMBINE
+        UNCHANGED --> COMBINE
+    end
+
+    PAC --> READ_DIGEST
+
+    subgraph OP_BUILD["Step 2: Build Operator"]
+        OP_CHECKOUT["Checkout rhods-operator<br/>from <code>main</code> branch"]
+        OP_INJECT["Inject snapshot digests<br/>into operands-map.yaml"]
+        OP_COMPILE["Build operator image<br/>(multi-arch)"]
+        OP_TAG["Tag with early-gate<br/>identifier"]
+        OP_CHECKOUT --> OP_INJECT --> OP_COMPILE --> OP_TAG
+    end
+
+    COMBINE --> OP_CHECKOUT
+
+    subgraph BUNDLE_BUILD["Step 3: Build Bundle"]
+        B_FETCH["Fetch operator metadata<br/>from built image"]
+        B_PROCESS["Run bundle-processor<br/>with snapshot digests"]
+        B_BUILD["Build bundle image<br/>with final pullspecs<br/>(digest-pinned at build time)"]
+        B_FETCH --> B_PROCESS --> B_BUILD
+    end
+
+    OP_TAG --> B_FETCH
+
+    subgraph FBC_BUILD["Step 4: Build FBC"]
+        FBC_CATALOG["Generate FBC catalog<br/>fragment"]
+        FBC_IMG["Build FBC image<br/>referencing bundle"]
+        FBC_CATALOG --> FBC_IMG
+    end
+
+    B_BUILD --> FBC_CATALOG
+
+    subgraph JENKINS_TEST["Step 5: Jenkins Smoke Tests"]
+        DEPLOY["Deploy RHOAI using<br/>FBC + early-gate images"]
+        SMOKE["Run early-gate<br/>smoke test suite"]
+        COLLECT["Collect test results<br/>per component scope"]
+        REPORT["Generate test report:<br/>pass / fail per test tier"]
+        DEPLOY --> SMOKE --> COLLECT --> REPORT
+    end
+
+    FBC_IMG --> DEPLOY
+
+    subgraph RESULTS["Test Results"]
+        PASS_ALL["All tests passed:<br/>proceed to merge<br/>all components"]
+        PARTIAL_PASS["Partial pass:<br/>component-scoped tests OK<br/>some cross-component failed"]
+        FAIL_ALL["Critical failures:<br/>block all merges"]
+    end
+
+    REPORT --> PASS_ALL
+    REPORT --> PARTIAL_PASS
+    REPORT --> FAIL_ALL
+
+    MERGE_ORCH["Merge Orchestrator<br/>(selective merge)"]
+    PASS_ALL --> MERGE_ORCH
+    PARTIAL_PASS --> MERGE_ORCH
+
+    style TRIGGER fill:#e1f5fe,stroke:#0288d1
+    style SNAPSHOT fill:#e8f5e9,stroke:#2e7d32
+    style OP_BUILD fill:#e3f2fd,stroke:#1565c0
+    style BUNDLE_BUILD fill:#f3e5f5,stroke:#6a1b9a
+    style FBC_BUILD fill:#fff3e0,stroke:#e65100
+    style JENKINS_TEST fill:#fce4ec,stroke:#c62828
+    style RESULTS fill:#e0f2f1,stroke:#00695c
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Legend</h3>
+      <table>
+        <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+        <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Trigger</td><td>Leader PR push triggers PaC pipeline</td></tr>
+        <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Snapshot</td><td>Group snapshot combining changed + unchanged digests</td></tr>
+        <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Operator Build</td><td>Build operator from main with snapshot digests</td></tr>
+        <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Bundle Build</td><td>Bundle with final pullspecs, digest-pinned</td></tr>
+        <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>FBC Build</td><td>FBC catalog fragment</td></tr>
+        <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Jenkins Tests</td><td>Early-gate smoke tests</td></tr>
+        <tr><td><span class="color-chip" style="background:#e0f2f1;border-color:#00695c"></span>Teal</td><td>Results</td><td>Test result classification</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Image Strategy for Early-Gate</h3>
+      <table>
+        <tr><th>Component Type</th><th>Image Source</th><th>Example Tag</th></tr>
+        <tr><td><strong>Changed</strong> (has sync PR)</td><td>PR-specific build</td><td><code>pr-1234-abc123</code></td></tr>
+        <tr><td><strong>Unchanged</strong> (no sync PR)</td><td>Latest y-stream release</td><td><code>rhoai-3.6-ea.1</code></td></tr>
+        <tr><td><strong>Operator</strong></td><td>Built from main + snapshot</td><td>Early-gate specific tag</td></tr>
+        <tr><td><strong>Bundle</strong></td><td>Built with final pullspecs</td><td>Digest-pinned at build time</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 30,
+      padding: 12,
+    },
+    securityLevel: 'loose',
+  });
+
+  await mermaid.run();
+
+  const defined = ['e2e-gated-auto-merger','early-gate-pipeline'];
+  const hashTab = location.hash.replace('#','');
+  const initial = defined.includes(hashTab) ? hashTab : 'e2e-gated-auto-merger';
+  document.querySelectorAll('.tab-content').forEach(el => {
+    if (el.id !== initial) el.classList.add('hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + initial + "'"));
+  });
+</script>
+
+<script>
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.remove('hidden');
+    event.target.classList.add('active');
+    history.replaceState(null, '', '#' + tabId);
+  }
+  window.switchTab = switchTab;
+
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.replace('#','');
+    if (document.getElementById(tab)) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tab + "'"));
+      });
+      document.getElementById(tab).classList.remove('hidden');
+    }
+  });
+
+  // ── Zoom state ────────────────────────────────────────────
+  const zoomState = {};
+
+  function getZoom(id) {
+    if (!zoomState[id]) zoomState[id] = { scale: 1 };
+    return zoomState[id];
+  }
+
+  function applyZoom(id) {
+    const state = getZoom(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transform = `scale(${state.scale})`;
+    const label = document.getElementById(id + '-level');
+    if (label) label.textContent = Math.round(state.scale * 100) + '%';
+  }
+
+  function zoom(id, direction) {
+    const state = getZoom(id);
+    const factor = direction > 0 ? 1.2 : 1 / 1.2;
+    state.scale = Math.max(0.1, Math.min(5, state.scale * factor));
+    applyZoom(id);
+  }
+  window.zoom = zoom;
+
+  function resetZoom(id) {
+    const state = getZoom(id);
+    state.scale = 1;
+    applyZoom(id);
+    const container = document.getElementById(id + '-container');
+    if (container) { container.scrollLeft = 0; container.scrollTop = 0; }
+  }
+  window.resetZoom = resetZoom;
+
+  function fitToWidth(id) {
+    const container = document.getElementById(id + '-container');
+    const inner = document.getElementById(id);
+    if (!container || !inner) return;
+    const state = getZoom(id);
+    state.scale = 1;
+    inner.style.transform = `scale(1)`;
+    const contentW = inner.scrollWidth;
+    const viewW = container.clientWidth - 32;
+    if (contentW > 0) {
+      state.scale = Math.max(0.1, Math.min(2, viewW / contentW));
+    }
+    applyZoom(id);
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+  }
+  window.fitToWidth = fitToWidth;
+
+  // ── Mouse-wheel zoom ─────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    container.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const inner = container.querySelector('.diagram-inner');
+      if (!inner) return;
+      const id = inner.id;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      zoom(id, direction);
+    }, { passive: false });
+  });
+
+  // ── Click-drag panning ────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    let isDragging = false, startX, startY, scrollL, scrollT;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      startX = e.pageX - container.offsetLeft;
+      startY = e.pageY - container.offsetTop;
+      scrollL = container.scrollLeft;
+      scrollT = container.scrollTop;
+      container.style.cursor = 'grabbing';
+    });
+
+    container.addEventListener('mouseleave', () => { isDragging = false; container.style.cursor = 'grab'; });
+    container.addEventListener('mouseup', () => { isDragging = false; container.style.cursor = 'grab'; });
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const y = e.pageY - container.offsetTop;
+      container.scrollLeft = scrollL - (x - startX);
+      container.scrollTop = scrollT - (y - startY);
+    });
+  });
+</script>
+
+</body>
+</html>

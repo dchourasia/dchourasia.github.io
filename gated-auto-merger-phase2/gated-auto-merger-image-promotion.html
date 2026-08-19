@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gated Auto-Merger Phase 2 &mdash; Image Promotion</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #1A4A8A;
+    --tab-active: #1A4A8A;
+    --tab-inactive: #e8eaf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Header */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    padding: 0 2rem;
+  }
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--accent); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Content */
+  .tab-content { padding: 1.5rem 2rem; }
+  .tab-content.hidden { display: none; }
+
+  /* Diagram card */
+  .diagram-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .diagram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+  }
+  .diagram-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .zoom-controls {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .zoom-btn:hover { background: #f0f0f0; }
+  .zoom-level {
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 3rem;
+    text-align: center;
+  }
+  .diagram-container {
+    overflow: auto;
+    position: relative;
+    max-height: 80vh;
+    cursor: grab;
+  }
+  .diagram-container:active { cursor: grabbing; }
+  .diagram-inner {
+    transform-origin: 0 0;
+    transition: transform 0.15s ease;
+    padding: 1.5rem;
+    display: inline-block;
+    min-width: 100%;
+  }
+
+  /* Reference tables */
+  .ref-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .ref-section h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: #f9fafb;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text);
+  }
+  tr:hover td { background: #fafbfc; }
+  .color-chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  code {
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* State machine */
+  .state-machine {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .state-machine pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text);
+  }
+
+  /* Two-column layout */
+  .ref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .ref-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Prevent Mermaid subgraph labels from being clipped */
+  .cluster-label foreignObject {
+    overflow: visible !important;
+  }
+  .cluster-label foreignObject div {
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Gated Auto-Merger &mdash; Phase 2: Image Promotion</h1>
+    <div class="subtitle">Build Once, Re-tag on Green &mdash; Image Promotion + Code Promotion &mdash; Interactive DAG Diagrams</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn" onclick="switchTab('e2e-image-promotion')">E2E Image Promotion</button>
+  <button class="tab-btn" onclick="switchTab('phase-comparison')">Phase 1 vs Phase 2</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 1: E2E Image Promotion Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="e2e-image-promotion" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Image Promotion Flow (Phase 2 &mdash; Build Once, Re-tag on Green)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('e2e-image-promotion-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="e2e-image-promotion-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('e2e-image-promotion-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('e2e-image-promotion-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('e2e-image-promotion-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="e2e-image-promotion-diagram-container">
+      <div class="diagram-inner" id="e2e-image-promotion-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph PHASE1_REUSE["Phase 1 Components (Reused)"]
+        PR_CREATE["Centralized PR Creator<br/>(nightly cron 2 AM UTC)"]
+        PR_MONITOR["PR Build Monitor<br/>(sync barrier)"]
+        LEADER_PR["Leader PR Manager<br/>(weekly PR in RBC)"]
+        PR_CREATE --> PR_MONITOR --> LEADER_PR
+    end
+
+    subgraph EARLY_GATE["Early-Gate Pipeline (Enhanced)"]
+        SNAPSHOT["Generate group snapshot"]
+        BUILD_ONCE["BUILD ONCE:<br/>operator &rarr; bundle &rarr; FBC<br/>with PR-specific tags"]
+        JENKINS["Jenkins smoke tests"]
+        SNAPSHOT --> BUILD_ONCE --> JENKINS
+    end
+
+    LEADER_PR --> SNAPSHOT
+
+    GATE_CHECK{"Early-gate<br/>tests pass?"}
+    JENKINS --> GATE_CHECK
+
+    subgraph IMAGE_PROMO["NEW: Image Promotion (on green)"]
+        RETAG["Re-tag successful images<br/>with release tags<br/>(e.g., <code>rhoai-3.6-ea.1</code>)"]
+        RETAG_OP["Re-tag triggers<br/>operator CI build"]
+        RETAG_BUNDLE["Operator triggers<br/>bundle CI build"]
+        RETAG_FBC["Bundle triggers<br/>FBC CI build"]
+        RETAG --> RETAG_OP --> RETAG_BUNDLE --> RETAG_FBC
+    end
+
+    GATE_CHECK -->|"Pass"| RETAG
+
+    subgraph CODE_PROMO["Code Promotion (Parallel Track)"]
+        MERGE_STABLE["Merge to stable<br/>(same as Phase 1)"]
+        STABLE_RELEASE["Stable &rarr; release branches<br/>(source tracking only)"]
+        DISABLE_PUSH["Component push builds<br/>DISABLED on release branches<br/>(retain on-demand for hotfixes)"]
+        MERGE_STABLE --> STABLE_RELEASE --> DISABLE_PUSH
+    end
+
+    GATE_CHECK -->|"Pass"| MERGE_STABLE
+
+    RELEASE_IMG(["Release images available<br/>via re-tag (not rebuild)"])
+    RETAG_FBC --> RELEASE_IMG
+
+    GATE_CHECK -->|"Fail"| BLOCK["Block merges &amp;<br/>image promotion"]
+
+    style PHASE1_REUSE fill:#e8f4e8,stroke:#2d7d2d
+    style EARLY_GATE fill:#e3f2fd,stroke:#1565c0
+    style IMAGE_PROMO fill:#f3e5f5,stroke:#6a1b9a
+    style CODE_PROMO fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f4e8;border-color:#2d7d2d"></span>Green</td><td>Phase 1 Reuse</td><td>PR Creator, Build Monitor, Leader PR &mdash; unchanged from Phase 1</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Early-Gate Pipeline</td><td>Build once with PR-specific tags, run tests</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Image Promotion (NEW)</td><td>Re-tag images on green &rarr; triggers CI chain</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Code Promotion</td><td>Parallel track for source tracking only</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Key Phase 2 Principle</h3>
+    <pre>
+BUILD ONCE, RE-TAG ON GREEN
+
+Phase 1: Build images during early-gate &rarr; test &rarr; REBUILD on release branch
+Phase 2: Build images during early-gate &rarr; test &rarr; RE-TAG to release tag (no rebuild)
+
+Benefits:
+  - Eliminates redundant rebuilds (~65 min saved per component)
+  - Guarantees tested images = released images (bit-for-bit identical)
+  - Faster time-to-release after tests pass</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 2: Phase 1 vs Phase 2 Comparison
+     ═══════════════════════════════════════════════════════════ -->
+<div id="phase-comparison" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Phase 1 vs Phase 2 Comparison</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('phase-comparison-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="phase-comparison-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('phase-comparison-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('phase-comparison-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('phase-comparison-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="phase-comparison-diagram-container">
+      <div class="diagram-inner" id="phase-comparison-diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph P1["Phase 1: Code Promotion"]
+        direction TB
+        P1_A["Early-gate tests pass"]
+        P1_B["Merge code to stable"]
+        P1_C["Promote stable &rarr;<br/>release branches"]
+        P1_D["Push builds triggered<br/>on release branches"]
+        P1_E["Component REBUILD<br/>from source"]
+        P1_F["Nudge chain:<br/>operator &rarr; bundle &rarr; FBC<br/>(sequential, per-component)"]
+        P1_G["Release images"]
+        P1_A --> P1_B --> P1_C --> P1_D --> P1_E --> P1_F --> P1_G
+    end
+
+    subgraph P2["Phase 2: Image Promotion"]
+        direction TB
+        P2_A["Early-gate tests pass"]
+        P2_B1["IMAGE TRACK:<br/>Re-tag images with<br/>release tags (skopeo)"]
+        P2_B2["CODE TRACK:<br/>Merge code to stable<br/>&rarr; release branches<br/>(source tracking only)"]
+        P2_C["Re-tag triggers<br/>operator CI build<br/>(batched digests)"]
+        P2_D["CI chain:<br/>operator &rarr; bundle &rarr; FBC<br/>(per release branch)"]
+        P2_E["Release images<br/>(same digest as tested)"]
+        P2_A --> P2_B1 --> P2_C --> P2_D --> P2_E
+        P2_A --> P2_B2
+    end
+
+    style P1 fill:#fce4ec,stroke:#c62828
+    style P2 fill:#e8f5e9,stroke:#2e7d32
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Detailed Comparison</h3>
+    <table>
+      <tr><th>Aspect</th><th>Phase 1: Code Promotion</th><th>Phase 2: Image Promotion</th></tr>
+      <tr><td><strong>Core principle</strong></td><td>Rebuild from source on release branch</td><td>Build once, re-tag on green</td></tr>
+      <tr><td><strong>Image identity</strong></td><td>Different digest (rebuilt)</td><td>Same digest (re-tagged)</td></tr>
+      <tr><td><strong>Component push builds</strong></td><td>Enabled on release branches</td><td>Disabled (on-demand for hotfixes)</td></tr>
+      <tr><td><strong>Nudge chain trigger</strong></td><td>Component push build</td><td>Re-tag event (skopeo copy)</td></tr>
+      <tr><td><strong>Operator processing</strong></td><td>One-at-a-time per nudge</td><td>Batch of all component digests</td></tr>
+      <tr><td><strong>Time after tests pass</strong></td><td>~65 min (full rebuild chain)</td><td>~35 min (re-tag + CI chain only)</td></tr>
+      <tr><td><strong>Tested = Released?</strong></td><td>No (rebuilt, could differ)</td><td>Yes (same digest, bit-identical)</td></tr>
+      <tr><td><strong>Code on release branch</strong></td><td>Triggers builds</td><td>Source tracking only</td></tr>
+      <tr><td><strong>SLSA provenance</strong></td><td>References release branch</td><td>References stable/main branch</td></tr>
+      <tr><td><strong>FIPS builds</strong></td><td>On release branch</td><td>During early-gate or separate scheduled</td></tr>
+      <tr><td><strong>Hotfix path</strong></td><td>Normal push build on release branch</td><td>On-demand push build (retained)</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Phase 2 Advantages</h3>
+      <table>
+        <tr><th>Benefit</th><th>Detail</th></tr>
+        <tr><td><strong>Faster release</strong></td><td>~30 min faster (no component rebuild)</td></tr>
+        <tr><td><strong>Image integrity</strong></td><td>Tested images = released images (identical digest)</td></tr>
+        <tr><td><strong>Reduced compute</strong></td><td>No redundant multi-arch builds</td></tr>
+        <tr><td><strong>Simpler chain</strong></td><td>Batch processing vs sequential nudges</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Phase 2 Risks / Caveats</h3>
+      <table>
+        <tr><th>Risk</th><th>Detail</th></tr>
+        <tr><td><strong>SLSA provenance</strong></td><td>References stable branch, not release &mdash; compliance concern</td></tr>
+        <tr><td><strong>FIPS</strong></td><td>May need separate FIPS builds on release branches</td></tr>
+        <tr><td><strong>New mechanism</strong></td><td>Image re-tagging is new infrastructure</td></tr>
+        <tr><td><strong>Ordering</strong></td><td>Re-tag must complete before operator CI starts</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 30,
+      padding: 12,
+    },
+    securityLevel: 'loose',
+  });
+
+  await mermaid.run();
+
+  const defined = ['e2e-image-promotion','phase-comparison'];
+  const hashTab = location.hash.replace('#','');
+  const initial = defined.includes(hashTab) ? hashTab : 'e2e-image-promotion';
+  document.querySelectorAll('.tab-content').forEach(el => {
+    if (el.id !== initial) el.classList.add('hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + initial + "'"));
+  });
+</script>
+
+<script>
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.remove('hidden');
+    event.target.classList.add('active');
+    history.replaceState(null, '', '#' + tabId);
+  }
+  window.switchTab = switchTab;
+
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.replace('#','');
+    if (document.getElementById(tab)) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tab + "'"));
+      });
+      document.getElementById(tab).classList.remove('hidden');
+    }
+  });
+
+  // ── Zoom state ────────────────────────────────────────────
+  const zoomState = {};
+
+  function getZoom(id) {
+    if (!zoomState[id]) zoomState[id] = { scale: 1 };
+    return zoomState[id];
+  }
+
+  function applyZoom(id) {
+    const state = getZoom(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transform = `scale(${state.scale})`;
+    const label = document.getElementById(id + '-level');
+    if (label) label.textContent = Math.round(state.scale * 100) + '%';
+  }
+
+  function zoom(id, direction) {
+    const state = getZoom(id);
+    const factor = direction > 0 ? 1.2 : 1 / 1.2;
+    state.scale = Math.max(0.1, Math.min(5, state.scale * factor));
+    applyZoom(id);
+  }
+  window.zoom = zoom;
+
+  function resetZoom(id) {
+    const state = getZoom(id);
+    state.scale = 1;
+    applyZoom(id);
+    const container = document.getElementById(id + '-container');
+    if (container) { container.scrollLeft = 0; container.scrollTop = 0; }
+  }
+  window.resetZoom = resetZoom;
+
+  function fitToWidth(id) {
+    const container = document.getElementById(id + '-container');
+    const inner = document.getElementById(id);
+    if (!container || !inner) return;
+    const state = getZoom(id);
+    state.scale = 1;
+    inner.style.transform = `scale(1)`;
+    const contentW = inner.scrollWidth;
+    const viewW = container.clientWidth - 32;
+    if (contentW > 0) {
+      state.scale = Math.max(0.1, Math.min(2, viewW / contentW));
+    }
+    applyZoom(id);
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+  }
+  window.fitToWidth = fitToWidth;
+
+  // ── Mouse-wheel zoom ─────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    container.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const inner = container.querySelector('.diagram-inner');
+      if (!inner) return;
+      const id = inner.id;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      zoom(id, direction);
+    }, { passive: false });
+  });
+
+  // ── Click-drag panning ────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    let isDragging = false, startX, startY, scrollL, scrollT;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      startX = e.pageX - container.offsetLeft;
+      startY = e.pageY - container.offsetTop;
+      scrollL = container.scrollLeft;
+      scrollT = container.scrollTop;
+      container.style.cursor = 'grabbing';
+    });
+
+    container.addEventListener('mouseleave', () => { isDragging = false; container.style.cursor = 'grab'; });
+    container.addEventListener('mouseup', () => { isDragging = false; container.style.cursor = 'grab'; });
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const y = e.pageY - container.offsetTop;
+      container.scrollLeft = scrollL - (x - startX);
+      container.scrollTop = scrollT - (y - startY);
+    });
+  });
+</script>
+
+</body>
+</html>
