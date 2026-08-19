@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gated Auto-Merger Phase 2 &mdash; Image Promotion</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #1A4A8A;
+    --tab-active: #1A4A8A;
+    --tab-inactive: #e8eaf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Header */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    padding: 0 2rem;
+  }
+  .tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--accent); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Content */
+  .tab-content { padding: 1.5rem 2rem; }
+  .tab-content.hidden { display: none; }
+
+  /* Diagram card */
+  .diagram-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .diagram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+  }
+  .diagram-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .zoom-controls {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .zoom-btn:hover { background: #f0f0f0; }
+  .zoom-level {
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 3rem;
+    text-align: center;
+  }
+  .diagram-container {
+    overflow: auto;
+    position: relative;
+    max-height: 80vh;
+    cursor: grab;
+  }
+  .diagram-container:active { cursor: grabbing; }
+  .diagram-inner {
+    transform-origin: 0 0;
+    transition: transform 0.15s ease;
+    padding: 1.5rem;
+    display: inline-block;
+    min-width: 100%;
+  }
+
+  /* Reference tables */
+  .ref-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .ref-section h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: #f9fafb;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text);
+  }
+  tr:hover td { background: #fafbfc; }
+  .color-chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  code {
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* State machine */
+  .state-machine {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .state-machine pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: var(--text);
+  }
+
+  /* Two-column layout */
+  .ref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .ref-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Prevent Mermaid subgraph labels from being clipped */
+  .cluster-label foreignObject {
+    overflow: visible !important;
+  }
+  .cluster-label foreignObject div {
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Gated Auto-Merger &mdash; Phase 2: Image Promotion</h1>
+    <div class="subtitle">Build Once, Re-tag on Green &mdash; Image Promotion + Code Promotion &mdash; Interactive DAG Diagrams</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn" onclick="switchTab('e2e-image-promotion')">E2E Image Promotion</button>
+  <button class="tab-btn" onclick="switchTab('early-gate-build-tagging')">Early-Gate Build &amp; Tagging</button>
+  <button class="tab-btn" onclick="switchTab('image-retagging')">Image Re-tagging Mechanism</button>
+  <button class="tab-btn" onclick="switchTab('modified-nudge-chain')">Modified Nudge Chain</button>
+  <button class="tab-btn" onclick="switchTab('ci-build-chain')">Operator/Bundle/FBC CI Chain</button>
+  <button class="tab-btn" onclick="switchTab('code-promotion')">Code Promotion (Parallel)</button>
+  <button class="tab-btn" onclick="switchTab('phase-comparison')">Phase 1 vs Phase 2</button>
+  <button class="tab-btn" onclick="switchTab('reference')">Reference</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 1: E2E Image Promotion Flow
+     ═══════════════════════════════════════════════════════════ -->
+<div id="e2e-image-promotion" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>E2E Image Promotion Flow (Phase 2 &mdash; Build Once, Re-tag on Green)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('e2e-image-promotion-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="e2e-image-promotion-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('e2e-image-promotion-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('e2e-image-promotion-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('e2e-image-promotion-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="e2e-image-promotion-diagram-container">
+      <div class="diagram-inner" id="e2e-image-promotion-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph PHASE1_REUSE["Phase 1 Components (Reused)"]
+        PR_CREATE["Centralized PR Creator<br/>(nightly cron 2 AM UTC)"]
+        PR_MONITOR["PR Build Monitor<br/>(sync barrier)"]
+        LEADER_PR["Leader PR Manager<br/>(weekly PR in RBC)"]
+        PR_CREATE --> PR_MONITOR --> LEADER_PR
+    end
+
+    subgraph EARLY_GATE["Early-Gate Pipeline (Enhanced)"]
+        SNAPSHOT["Generate group snapshot"]
+        BUILD_ONCE["BUILD ONCE:<br/>operator &rarr; bundle &rarr; FBC<br/>with PR-specific tags"]
+        JENKINS["Jenkins smoke tests"]
+        SNAPSHOT --> BUILD_ONCE --> JENKINS
+    end
+
+    LEADER_PR --> SNAPSHOT
+
+    GATE_CHECK{"Early-gate<br/>tests pass?"}
+    JENKINS --> GATE_CHECK
+
+    subgraph IMAGE_PROMO["NEW: Image Promotion (on green)"]
+        RETAG["Re-tag successful images<br/>with release tags<br/>(e.g., <code>rhoai-3.6-ea.1</code>)"]
+        RETAG_OP["Re-tag triggers<br/>operator CI build"]
+        RETAG_BUNDLE["Operator triggers<br/>bundle CI build"]
+        RETAG_FBC["Bundle triggers<br/>FBC CI build"]
+        RETAG --> RETAG_OP --> RETAG_BUNDLE --> RETAG_FBC
+    end
+
+    GATE_CHECK -->|"Pass"| RETAG
+
+    subgraph CODE_PROMO["Code Promotion (Parallel Track)"]
+        MERGE_STABLE["Merge to stable<br/>(same as Phase 1)"]
+        STABLE_RELEASE["Stable &rarr; release branches<br/>(source tracking only)"]
+        DISABLE_PUSH["Component push builds<br/>DISABLED on release branches<br/>(retain on-demand for hotfixes)"]
+        MERGE_STABLE --> STABLE_RELEASE --> DISABLE_PUSH
+    end
+
+    GATE_CHECK -->|"Pass"| MERGE_STABLE
+
+    RELEASE_IMG(["Release images available<br/>via re-tag (not rebuild)"])
+    RETAG_FBC --> RELEASE_IMG
+
+    GATE_CHECK -->|"Fail"| BLOCK["Block merges &amp;<br/>image promotion"]
+
+    style PHASE1_REUSE fill:#e8f4e8,stroke:#2d7d2d
+    style EARLY_GATE fill:#e3f2fd,stroke:#1565c0
+    style IMAGE_PROMO fill:#f3e5f5,stroke:#6a1b9a
+    style CODE_PROMO fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Category</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f4e8;border-color:#2d7d2d"></span>Green</td><td>Phase 1 Reuse</td><td>PR Creator, Build Monitor, Leader PR &mdash; unchanged from Phase 1</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Early-Gate Pipeline</td><td>Build once with PR-specific tags, run tests</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Image Promotion (NEW)</td><td>Re-tag images on green &rarr; triggers CI chain</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Code Promotion</td><td>Parallel track for source tracking only</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Key Phase 2 Principle</h3>
+    <pre>
+BUILD ONCE, RE-TAG ON GREEN
+
+Phase 1: Build images during early-gate &rarr; test &rarr; REBUILD on release branch
+Phase 2: Build images during early-gate &rarr; test &rarr; RE-TAG to release tag (no rebuild)
+
+Benefits:
+  - Eliminates redundant rebuilds (~65 min saved per component)
+  - Guarantees tested images = released images (bit-for-bit identical)
+  - Faster time-to-release after tests pass</pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 2: Early-Gate Build & Image Tagging
+     ═══════════════════════════════════════════════════════════ -->
+<div id="early-gate-build-tagging" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Early-Gate Build &amp; Image Tagging Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('early-gate-build-tagging-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="early-gate-build-tagging-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('early-gate-build-tagging-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('early-gate-build-tagging-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('early-gate-build-tagging-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="early-gate-build-tagging-diagram-container">
+      <div class="diagram-inner" id="early-gate-build-tagging-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph TRIGGER["Pipeline Trigger"]
+        LP_PUSH["Leader PR push to<br/><code>gated-auto-merge-leader</code>"]
+    end
+
+    subgraph SNAPSHOT["Step 1: Generate Group Snapshot"]
+        READ_MAP["Read component digest map"]
+        CHANGED_IMG["Changed components:<br/>use PR-specific tags"]
+        UNCHANGED_IMG["Unchanged components:<br/>use latest y-stream tags<br/>(e.g., <code>rhoai-3.6-ea.1</code>)"]
+        COMBINE["Combine into<br/>group snapshot"]
+        READ_MAP --> CHANGED_IMG
+        READ_MAP --> UNCHANGED_IMG
+        CHANGED_IMG --> COMBINE
+        UNCHANGED_IMG --> COMBINE
+    end
+
+    LP_PUSH --> READ_MAP
+
+    subgraph BUILD_CHAIN["Step 2: Build Chain (PR-Specific Tags)"]
+        OP_BUILD["Build operator image<br/>from main + snapshot<br/>Tag: <code>early-gate-{date}-{sha}</code>"]
+        BUNDLE_BUILD["Build bundle image<br/>with digest-pinned pullspecs<br/>Tag: <code>early-gate-{date}-{sha}</code>"]
+        FBC_BUILD["Build FBC image<br/>Tag: <code>early-gate-{date}-{sha}</code>"]
+        OP_BUILD --> BUNDLE_BUILD --> FBC_BUILD
+    end
+
+    COMBINE --> OP_BUILD
+
+    subgraph TAG_RECORD["Step 3: Record Build Artifacts"]
+        RECORD_DIGESTS["Record all image digests<br/>from build chain"]
+        TAG_MAP["Create tag mapping:<br/>early-gate tag &rarr; digest<br/>for each component"]
+        STORE["Store in Leader PR<br/>as build artifact metadata"]
+        RECORD_DIGESTS --> TAG_MAP --> STORE
+    end
+
+    FBC_BUILD --> RECORD_DIGESTS
+
+    subgraph TESTING["Step 4: Jenkins Smoke Tests"]
+        DEPLOY["Deploy RHOAI using<br/>early-gate tagged images"]
+        SMOKE["Run smoke test suite"]
+        RESULTS["Collect test results"]
+        DEPLOY --> SMOKE --> RESULTS
+    end
+
+    STORE --> DEPLOY
+
+    subgraph BRANCH_STRATEGY["Branch-Specific Build Source"]
+        NON_FROZEN["Non-code-frozen branches:<br/>images from <code>stable</code><br/>early-gate pipeline"]
+        CODE_FROZEN["Code-frozen branches:<br/>images from release branch<br/>early-gate pipeline"]
+        FIPS_NOTE["FIPS builds: either during<br/>early-gate or separate<br/>scheduled builds on<br/>release branches"]
+    end
+
+    RESULTS --> NON_FROZEN
+    RESULTS --> CODE_FROZEN
+
+    style TRIGGER fill:#e1f5fe,stroke:#0288d1
+    style SNAPSHOT fill:#e8f5e9,stroke:#2e7d32
+    style BUILD_CHAIN fill:#e3f2fd,stroke:#1565c0
+    style TAG_RECORD fill:#f3e5f5,stroke:#6a1b9a
+    style TESTING fill:#fce4ec,stroke:#c62828
+    style BRANCH_STRATEGY fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Legend</h3>
+      <table>
+        <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+        <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Trigger</td><td>Leader PR push event</td></tr>
+        <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Snapshot</td><td>Group snapshot generation</td></tr>
+        <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Build Chain</td><td>Operator &rarr; bundle &rarr; FBC with PR-specific tags</td></tr>
+        <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Tag Record</td><td>Store digest mapping for later re-tag</td></tr>
+        <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Testing</td><td>Jenkins smoke tests with early-gate images</td></tr>
+        <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Branch Strategy</td><td>Non-frozen vs code-frozen build sources</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Tagging Strategy</h3>
+      <table>
+        <tr><th>Phase</th><th>Tag Format</th><th>Purpose</th></tr>
+        <tr><td><strong>Early-gate build</strong></td><td><code>early-gate-{date}-{sha}</code></td><td>PR-specific, used for testing</td></tr>
+        <tr><td><strong>On green (re-tag)</strong></td><td><code>rhoai-3.6-ea.1</code></td><td>Release tag, same digest</td></tr>
+        <tr><td><strong>Unchanged</strong></td><td><code>rhoai-3.6-ea.1</code> (existing)</td><td>Already tagged from prior cycle</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 3: Image Re-tagging Mechanism
+     ═══════════════════════════════════════════════════════════ -->
+<div id="image-retagging" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Image Re-tagging Mechanism Flow</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('image-retagging-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="image-retagging-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('image-retagging-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('image-retagging-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('image-retagging-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="image-retagging-diagram-container">
+      <div class="diagram-inner" id="image-retagging-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph TRIGGER["Trigger: Tests Pass"]
+        GREEN["Early-gate tests<br/>ALL PASSED"]
+        DIGEST_MAP["Load stored digest map<br/>from Leader PR metadata"]
+        GREEN --> DIGEST_MAP
+    end
+
+    subgraph CONFIG["Re-tag Configuration"]
+        RELEASE_MAP["Read release branch &rarr;<br/>tag mapping from<br/><code>main-release-source-map.yaml</code>"]
+        TARGET_TAGS["Determine target tags:<br/>e.g., <code>rhoai-3.6</code>,<br/><code>rhoai-3.6-ea.1</code>"]
+        RELEASE_MAP --> TARGET_TAGS
+    end
+
+    DIGEST_MAP --> RELEASE_MAP
+
+    subgraph RETAG_LOOP["For Each Component Image"]
+        ITER["Pick next component<br/>from digest map"]
+
+        subgraph SKOPEO["Skopeo Copy Operation"]
+            SRC["Source:<br/><code>quay.io/rhoai/component<br/>@sha256:abc123...</code><br/>(early-gate digest)"]
+            DEST["Destination:<br/><code>quay.io/rhoai/component<br/>:rhoai-3.6-ea.1</code><br/>(release tag)"]
+            COPY["<code>skopeo copy</code><br/>--all (multi-arch)<br/>docker://src docker://dest"]
+            VERIFY["Verify tag applied:<br/>query Quay API to<br/>confirm digest match"]
+            SRC --> COPY
+            DEST --> COPY
+            COPY --> VERIFY
+        end
+
+        VERIFY_OK{"Tag verified?"}
+        RETRY["Retry with<br/>exponential backoff"]
+        RECORD["Record: component<br/>re-tagged successfully"]
+
+        VERIFY --> VERIFY_OK
+        VERIFY_OK -->|"Yes"| RECORD
+        VERIFY_OK -->|"No"| RETRY
+        RETRY --> COPY
+
+        NEXT{"More<br/>components?"}
+        RECORD --> NEXT
+        NEXT -->|"Yes"| ITER
+    end
+
+    TARGET_TAGS --> ITER
+
+    subgraph BATCH["Batch Properties"]
+        IDEMPOTENT["Idempotent:<br/>re-running is safe<br/>(same digest, same tag)"]
+        ALL_ARCH["Multi-arch aware:<br/><code>--all</code> flag copies<br/>all platform manifests"]
+        ORDERING["Ordering critical:<br/>1. Component re-tags<br/>2. Then operator CI build<br/>3. Then bundle CI build"]
+    end
+
+    subgraph DOWNSTREAM["Downstream: CI Build Triggers"]
+        OP_CI["Re-tag event triggers<br/>operator-processor<br/>(batch all digests)"]
+        BUNDLE_CI["Operator build triggers<br/>bundle-processor"]
+        FBC_CI["Bundle build triggers<br/>FBC catalog build"]
+        OP_CI --> BUNDLE_CI --> FBC_CI
+    end
+
+    NEXT -->|"No (all done)"| OP_CI
+
+    style TRIGGER fill:#e8f5e9,stroke:#2e7d32
+    style CONFIG fill:#e1f5fe,stroke:#0288d1
+    style RETAG_LOOP fill:#f5f5f5,stroke:#616161
+    style SKOPEO fill:#f3e5f5,stroke:#6a1b9a
+    style BATCH fill:#fff3e0,stroke:#e65100
+    style DOWNSTREAM fill:#fce4ec,stroke:#c62828
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Legend</h3>
+      <table>
+        <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+        <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Trigger</td><td>Early-gate tests pass, load digest map</td></tr>
+        <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Configuration</td><td>Release branch &rarr; tag mapping</td></tr>
+        <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Skopeo Copy</td><td>Digest-preserving image re-tag</td></tr>
+        <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Batch Properties</td><td>Idempotent, multi-arch, ordered</td></tr>
+        <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>Downstream</td><td>CI build chain triggered by re-tag</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Skopeo Copy Details</h3>
+      <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td><strong>Tool</strong></td><td><code>skopeo copy</code></td></tr>
+        <tr><td><strong>Multi-arch</strong></td><td><code>--all</code> flag preserves all platform manifests</td></tr>
+        <tr><td><strong>Auth</strong></td><td>Quay robot account with write access</td></tr>
+        <tr><td><strong>Idempotent</strong></td><td>Safe to re-run (same digest &rarr; no-op)</td></tr>
+        <tr><td><strong>Batch size</strong></td><td>All changed components in one pass</td></tr>
+        <tr><td><strong>Verification</strong></td><td>Post-copy Quay API check</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 4: Modified Nudge Chain with Image Promotion
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modified-nudge-chain" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Modified Nudge Chain with Image Promotion</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('modified-nudge-chain-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="modified-nudge-chain-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('modified-nudge-chain-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('modified-nudge-chain-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('modified-nudge-chain-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="modified-nudge-chain-diagram-container">
+      <div class="diagram-inner" id="modified-nudge-chain-diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph PHASE1_CHAIN["Phase 1: Current Nudge Chain (on release branch)"]
+        direction TB
+        P1_PUSH["Code merge to<br/>release branch"]
+        P1_COMP["Component push build<br/>(REBUILD from source)"]
+        P1_NUDGE1["Nudge to operator"]
+        P1_OP["Operator processing<br/>+ build"]
+        P1_NUDGE2["Nudge to bundle"]
+        P1_BUNDLE["Bundle processing<br/>+ build"]
+        P1_NUDGE3["Nudge to FBC"]
+        P1_FBC["FBC build"]
+        P1_PUSH --> P1_COMP --> P1_NUDGE1 --> P1_OP --> P1_NUDGE2 --> P1_BUNDLE --> P1_NUDGE3 --> P1_FBC
+    end
+
+    subgraph PHASE2_CHAIN["Phase 2: Modified Chain (image promotion)"]
+        direction TB
+        P2_RETAG["Image re-tag<br/>(skopeo copy)<br/>REPLACES component push build"]
+        P2_DETECT["Re-tag event detected<br/>(new tag on existing digest)"]
+        P2_OP_PROC["operator-processor<br/>accepts BATCH of all<br/>component digests<br/>in one pass"]
+        P2_OP_BUILD["Operator CI build<br/>(on release branch)"]
+        P2_BUNDLE_PROC["bundle-processor<br/>(same as Phase 1)"]
+        P2_BUNDLE_BUILD["Bundle CI build"]
+        P2_FBC_BUILD["FBC CI build"]
+        P2_RETAG --> P2_DETECT --> P2_OP_PROC --> P2_OP_BUILD --> P2_BUNDLE_PROC --> P2_BUNDLE_BUILD --> P2_FBC_BUILD
+    end
+
+    subgraph CHANGES["Key Changes from Phase 1"]
+        CH1["Component push builds<br/>DISABLED on release branches<br/>(retained on-demand<br/>for hotfixes only)"]
+        CH2["Re-tag event REPLACES<br/>component push build<br/>as chain trigger"]
+        CH3["Operator-processor accepts<br/>batch of ALL component<br/>digests in one pass<br/>(not one-at-a-time)"]
+        CH4["Bundle ordering critical:<br/>re-tag must complete<br/>BEFORE operator build"]
+    end
+
+    style PHASE1_CHAIN fill:#fce4ec,stroke:#c62828
+    style PHASE2_CHAIN fill:#e8f5e9,stroke:#2e7d32
+    style CHANGES fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Nudge Chain Trigger Replacement</h3>
+    <table>
+      <tr><th>Step</th><th>Phase 1 (Code Promotion)</th><th>Phase 2 (Image Promotion)</th></tr>
+      <tr><td><strong>Chain start</strong></td><td>Code merge &rarr; component push build</td><td>Re-tag event (skopeo copy)</td></tr>
+      <tr><td><strong>Component images</strong></td><td>Rebuilt from source on release branch</td><td>Re-tagged from early-gate build (same digest)</td></tr>
+      <tr><td><strong>Operator trigger</strong></td><td>Individual nudge per component</td><td>Batch of all digests in one pass</td></tr>
+      <tr><td><strong>Push builds</strong></td><td>Enabled on release branches</td><td>Disabled (on-demand for hotfixes only)</td></tr>
+      <tr><td><strong>Bundle ordering</strong></td><td>Sequential nudge chain</td><td>Re-tag &rarr; operator &rarr; bundle (strict order)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 5: Operator/Bundle/FBC CI Build Chain
+     ═══════════════════════════════════════════════════════════ -->
+<div id="ci-build-chain" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Operator / Bundle / FBC CI Build Chain (Batched)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('ci-build-chain-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="ci-build-chain-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('ci-build-chain-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('ci-build-chain-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('ci-build-chain-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="ci-build-chain-diagram-container">
+      <div class="diagram-inner" id="ci-build-chain-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph RETAG_COMPLETE["Trigger: All Re-tags Complete"]
+        ALL_RETAG["All component images<br/>re-tagged with release tag<br/>(e.g., <code>rhoai-3.6-ea.1</code>)"]
+        DIGEST_BATCH["Batch digest manifest:<br/>all component digests<br/>collected in one payload"]
+        ALL_RETAG --> DIGEST_BATCH
+    end
+
+    subgraph OP_CHAIN["Operator CI Build (per release branch)"]
+        OP_TRIGGER["Re-tag event triggers<br/>operator-processor on<br/>release branch"]
+
+        subgraph OP_BATCH["Batched Operator Processing"]
+            OP_ACCEPT["operator-processor.py<br/>accepts ALL component<br/>digests in one pass"]
+            OP_UPDATE["Update operands-map.yaml<br/>with all re-tagged digests<br/>(single commit)"]
+            OP_MANIFEST["Fetch all component<br/>manifests at pinned commits"]
+            OP_COMMIT["Commit &amp; push"]
+            OP_ACCEPT --> OP_UPDATE --> OP_MANIFEST --> OP_COMMIT
+        end
+
+        OP_BUILD["Tekton build triggered<br/>by operands-map.yaml change"]
+        OP_IMG["Operator image built<br/>on release branch"]
+
+        OP_TRIGGER --> OP_BATCH
+        OP_COMMIT --> OP_BUILD --> OP_IMG
+    end
+
+    DIGEST_BATCH --> OP_TRIGGER
+
+    subgraph BUNDLE_CHAIN["Bundle CI Build (per release branch)"]
+        B_NUDGE["Operator image nudges<br/>bundle-patch.yaml in<br/>RHOAI-Build-Config"]
+        B_PROC["bundle-processor.py runs<br/>on release branch"]
+        B_BUILD["Bundle Tekton build<br/>(digest-pinned pullspecs)"]
+        B_HELM["Helm chart builds<br/>(XKS + OpenShift)"]
+        B_NUDGE --> B_PROC --> B_BUILD
+        B_PROC --> B_HELM
+    end
+
+    OP_IMG -->|"Konflux nudge"| B_NUDGE
+
+    subgraph FBC_CHAIN["FBC CI Build"]
+        FBC_NUDGE["Bundle image nudges<br/>catalog-patch.yaml"]
+        FBC_BUILD["FBC catalog fragment<br/>build"]
+        FBC_NUDGE --> FBC_BUILD
+    end
+
+    B_BUILD -->|"Konflux nudge"| FBC_NUDGE
+
+    subgraph PER_BRANCH["Runs Per Release Branch"]
+        BRANCH1["<code>rhoai-3.6</code><br/>operator &rarr; bundle &rarr; FBC"]
+        BRANCH2["<code>rhoai-3.6-ea.1</code><br/>operator &rarr; bundle &rarr; FBC"]
+        BRANCHN["Other active branches<br/>(if not code-frozen)"]
+    end
+
+    RELEASE_DONE(["Release artifacts<br/>ready per branch"])
+    FBC_BUILD --> RELEASE_DONE
+
+    style RETAG_COMPLETE fill:#e8f5e9,stroke:#2e7d32
+    style OP_CHAIN fill:#e3f2fd,stroke:#1565c0
+    style OP_BATCH fill:#e8eaf6,stroke:#283593
+    style BUNDLE_CHAIN fill:#f3e5f5,stroke:#6a1b9a
+    style FBC_CHAIN fill:#fff3e0,stroke:#e65100
+    style PER_BRANCH fill:#fff8e1,stroke:#f57f17
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Legend</h3>
+    <table>
+      <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+      <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Re-tag Complete</td><td>All components re-tagged, batch digest ready</td></tr>
+      <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Operator CI</td><td>Batched operator processing on release branch</td></tr>
+      <tr><td><span class="color-chip" style="background:#e8eaf6;border-color:#283593"></span>Indigo</td><td>Batched Processing</td><td>All digests in one pass (not one-at-a-time)</td></tr>
+      <tr><td><span class="color-chip" style="background:#f3e5f5;border-color:#6a1b9a"></span>Purple</td><td>Bundle CI</td><td>Bundle processing + Helm charts</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>FBC CI</td><td>FBC catalog fragment build</td></tr>
+      <tr><td><span class="color-chip" style="background:#fff8e1;border-color:#f57f17"></span>Yellow</td><td>Per Branch</td><td>Chain runs for each active release branch</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 6: Code Promotion (Parallel Track)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="code-promotion" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Code Promotion (Parallel Track &mdash; Source Tracking)</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('code-promotion-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="code-promotion-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('code-promotion-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('code-promotion-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('code-promotion-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="code-promotion-diagram-container">
+      <div class="diagram-inner" id="code-promotion-diagram">
+        <pre class="mermaid">
+flowchart TD
+    subgraph TRIGGER["Trigger (parallel with image promotion)"]
+        GATE_PASS["Early-gate tests pass"]
+    end
+
+    subgraph MERGE["Merge to Stable (same as Phase 1)"]
+        CLASSIFY["3-tier test classification"]
+        SELECTIVE["Selective merge to<br/><code>stable</code> branch"]
+        CLASSIFY --> SELECTIVE
+    end
+
+    GATE_PASS --> CLASSIFY
+
+    subgraph PROMO["Stable &rarr; Release Branches"]
+        SOURCE_MAP["Read <code>main-release-source-map.yaml</code>"]
+        FOR_EACH["For each target release branch"]
+        IS_FROZEN{"Code-frozen?"}
+        SKIP["Skip (manual only)"]
+        MERGE_CODE["Merge stable &rarr;<br/>release branch"]
+        SOURCE_MAP --> FOR_EACH --> IS_FROZEN
+        IS_FROZEN -->|"Yes"| SKIP
+        IS_FROZEN -->|"No"| MERGE_CODE
+    end
+
+    SELECTIVE --> SOURCE_MAP
+
+    subgraph DISABLED["Push Builds DISABLED"]
+        NO_PUSH["Component push builds<br/>DISABLED on release branches"]
+        HOTFIX_NOTE["On-demand push builds<br/>retained for hotfixes<br/>(manual trigger only)"]
+        PURPOSE["Code on release branch<br/>serves as SOURCE TRACKING<br/>(not build trigger)"]
+        NO_PUSH --> HOTFIX_NOTE
+        NO_PUSH --> PURPOSE
+    end
+
+    MERGE_CODE --> NO_PUSH
+
+    subgraph SLSA["SLSA Provenance Concern"]
+        PROV_NOTE["SLSA provenance references<br/><code>stable</code> / <code>main</code> branch<br/>(not release branch)"]
+        COMPLIANCE["Compliance concern:<br/>release images built from<br/>stable branch code, not<br/>release branch code"]
+        MITIGATION["Mitigation: code is<br/>identical after merge &mdash;<br/>stable = release at<br/>time of build"]
+        PROV_NOTE --> COMPLIANCE --> MITIGATION
+    end
+
+    style TRIGGER fill:#e1f5fe,stroke:#0288d1
+    style MERGE fill:#e8f5e9,stroke:#2e7d32
+    style PROMO fill:#e3f2fd,stroke:#1565c0
+    style DISABLED fill:#fff3e0,stroke:#e65100
+    style SLSA fill:#fce4ec,stroke:#c62828
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Legend</h3>
+      <table>
+        <tr><th>Color</th><th>Phase</th><th>Description</th></tr>
+        <tr><td><span class="color-chip" style="background:#e1f5fe;border-color:#0288d1"></span>Light Blue</td><td>Trigger</td><td>Early-gate pass (parallel with image promo)</td></tr>
+        <tr><td><span class="color-chip" style="background:#e8f5e9;border-color:#2e7d32"></span>Green</td><td>Merge</td><td>Selective merge to stable (same as Phase 1)</td></tr>
+        <tr><td><span class="color-chip" style="background:#e3f2fd;border-color:#1565c0"></span>Blue</td><td>Promotion</td><td>Stable &rarr; release branches</td></tr>
+        <tr><td><span class="color-chip" style="background:#fff3e0;border-color:#e65100"></span>Orange</td><td>Disabled Builds</td><td>Push builds off &mdash; code for tracking only</td></tr>
+        <tr><td><span class="color-chip" style="background:#fce4ec;border-color:#c62828"></span>Pink</td><td>SLSA Concern</td><td>Provenance references stable, not release</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Why Code Still Promoted?</h3>
+      <table>
+        <tr><th>Reason</th><th>Detail</th></tr>
+        <tr><td><strong>Source tracking</strong></td><td>Release branches show what code corresponds to released images</td></tr>
+        <tr><td><strong>Hotfix base</strong></td><td>Release branch is the base for emergency hotfix builds</td></tr>
+        <tr><td><strong>Audit trail</strong></td><td>Git history shows when code was promoted</td></tr>
+        <tr><td><strong>SLSA provenance</strong></td><td>Links released artifacts to source code</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 7: Phase 1 vs Phase 2 Comparison
+     ═══════════════════════════════════════════════════════════ -->
+<div id="phase-comparison" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Phase 1 vs Phase 2 Comparison</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('phase-comparison-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="phase-comparison-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('phase-comparison-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('phase-comparison-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('phase-comparison-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="phase-comparison-diagram-container">
+      <div class="diagram-inner" id="phase-comparison-diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph P1["Phase 1: Code Promotion"]
+        direction TB
+        P1_A["Early-gate tests pass"]
+        P1_B["Merge code to stable"]
+        P1_C["Promote stable &rarr;<br/>release branches"]
+        P1_D["Push builds triggered<br/>on release branches"]
+        P1_E["Component REBUILD<br/>from source"]
+        P1_F["Nudge chain:<br/>operator &rarr; bundle &rarr; FBC<br/>(sequential, per-component)"]
+        P1_G["Release images"]
+        P1_A --> P1_B --> P1_C --> P1_D --> P1_E --> P1_F --> P1_G
+    end
+
+    subgraph P2["Phase 2: Image Promotion"]
+        direction TB
+        P2_A["Early-gate tests pass"]
+        P2_B1["IMAGE TRACK:<br/>Re-tag images with<br/>release tags (skopeo)"]
+        P2_B2["CODE TRACK:<br/>Merge code to stable<br/>&rarr; release branches<br/>(source tracking only)"]
+        P2_C["Re-tag triggers<br/>operator CI build<br/>(batched digests)"]
+        P2_D["CI chain:<br/>operator &rarr; bundle &rarr; FBC<br/>(per release branch)"]
+        P2_E["Release images<br/>(same digest as tested)"]
+        P2_A --> P2_B1 --> P2_C --> P2_D --> P2_E
+        P2_A --> P2_B2
+    end
+
+    style P1 fill:#fce4ec,stroke:#c62828
+    style P2 fill:#e8f5e9,stroke:#2e7d32
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>Detailed Comparison</h3>
+    <table>
+      <tr><th>Aspect</th><th>Phase 1: Code Promotion</th><th>Phase 2: Image Promotion</th></tr>
+      <tr><td><strong>Core principle</strong></td><td>Rebuild from source on release branch</td><td>Build once, re-tag on green</td></tr>
+      <tr><td><strong>Image identity</strong></td><td>Different digest (rebuilt)</td><td>Same digest (re-tagged)</td></tr>
+      <tr><td><strong>Component push builds</strong></td><td>Enabled on release branches</td><td>Disabled (on-demand for hotfixes)</td></tr>
+      <tr><td><strong>Nudge chain trigger</strong></td><td>Component push build</td><td>Re-tag event (skopeo copy)</td></tr>
+      <tr><td><strong>Operator processing</strong></td><td>One-at-a-time per nudge</td><td>Batch of all component digests</td></tr>
+      <tr><td><strong>Time after tests pass</strong></td><td>~65 min (full rebuild chain)</td><td>~35 min (re-tag + CI chain only)</td></tr>
+      <tr><td><strong>Tested = Released?</strong></td><td>No (rebuilt, could differ)</td><td>Yes (same digest, bit-identical)</td></tr>
+      <tr><td><strong>Code on release branch</strong></td><td>Triggers builds</td><td>Source tracking only</td></tr>
+      <tr><td><strong>SLSA provenance</strong></td><td>References release branch</td><td>References stable/main branch</td></tr>
+      <tr><td><strong>FIPS builds</strong></td><td>On release branch</td><td>During early-gate or separate scheduled</td></tr>
+      <tr><td><strong>Hotfix path</strong></td><td>Normal push build on release branch</td><td>On-demand push build (retained)</td></tr>
+    </table>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Phase 2 Advantages</h3>
+      <table>
+        <tr><th>Benefit</th><th>Detail</th></tr>
+        <tr><td><strong>Faster release</strong></td><td>~30 min faster (no component rebuild)</td></tr>
+        <tr><td><strong>Image integrity</strong></td><td>Tested images = released images (identical digest)</td></tr>
+        <tr><td><strong>Reduced compute</strong></td><td>No redundant multi-arch builds</td></tr>
+        <tr><td><strong>Simpler chain</strong></td><td>Batch processing vs sequential nudges</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Phase 2 Risks / Caveats</h3>
+      <table>
+        <tr><th>Risk</th><th>Detail</th></tr>
+        <tr><td><strong>SLSA provenance</strong></td><td>References stable branch, not release &mdash; compliance concern</td></tr>
+        <tr><td><strong>FIPS</strong></td><td>May need separate FIPS builds on release branches</td></tr>
+        <tr><td><strong>New mechanism</strong></td><td>Image re-tagging is new infrastructure</td></tr>
+        <tr><td><strong>Ordering</strong></td><td>Re-tag must complete before operator CI starts</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Tab 8: Reference
+     ═══════════════════════════════════════════════════════════ -->
+<div id="reference" class="tab-content">
+
+  <div class="diagram-card">
+    <div class="diagram-header">
+      <h2>Phase 2 Component Overview &mdash; Image vs Code Tracks</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoom('reference-diagram', -1)" title="Zoom out">&minus;</button>
+        <span class="zoom-level" id="reference-diagram-level">100%</span>
+        <button class="zoom-btn" onclick="zoom('reference-diagram', 1)" title="Zoom in">+</button>
+        <button class="zoom-btn" onclick="resetZoom('reference-diagram')" title="Reset">&#8634;</button>
+        <button class="zoom-btn" onclick="fitToWidth('reference-diagram')" title="Fit width">&#x2194;</button>
+      </div>
+    </div>
+    <div class="diagram-container" id="reference-diagram-container">
+      <div class="diagram-inner" id="reference-diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph SHARED["Shared (Phase 1 Reuse)"]
+        direction TB
+        PR["PR Creator + Monitor"]
+        LEADER["Leader PR Manager"]
+        EG["Early-Gate Pipeline<br/>(build once)"]
+        PR --> LEADER --> EG
+    end
+
+    GATE{"Tests<br/>pass?"}
+    EG --> GATE
+
+    subgraph IMAGE_TRACK["Image Track (NEW)"]
+        direction TB
+        RETAG["Image Re-tagger<br/>(skopeo copy)"]
+        CI["CI Chain:<br/>operator &rarr; bundle &rarr; FBC"]
+        RETAG --> CI
+    end
+
+    subgraph CODE_TRACK["Code Track (Parallel)"]
+        direction TB
+        MERGE["Merge to stable"]
+        PROMO["Stable &rarr; release<br/>(source tracking)"]
+        MERGE --> PROMO
+    end
+
+    GATE -->|"Pass"| RETAG
+    GATE -->|"Pass"| MERGE
+
+    RELEASE(["Release images<br/>(same digest as tested)"])
+    CI --> RELEASE
+
+    style SHARED fill:#e8f4e8,stroke:#2d7d2d
+    style IMAGE_TRACK fill:#f3e5f5,stroke:#6a1b9a
+    style CODE_TRACK fill:#fff3e0,stroke:#e65100
+        </pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Phase 2 System Components</h3>
+      <table>
+        <tr><th>#</th><th>Component</th><th>Change from Phase 1</th></tr>
+        <tr><td>1</td><td><strong>Centralized PR Creator</strong></td><td>Unchanged</td></tr>
+        <tr><td>2</td><td><strong>PR Build Monitor</strong></td><td>Unchanged</td></tr>
+        <tr><td>3</td><td><strong>Leader PR Manager</strong></td><td>Enhanced: records build digests for re-tag</td></tr>
+        <tr><td>4</td><td><strong>Merge Orchestrator</strong></td><td>Unchanged (code track)</td></tr>
+        <tr><td>5</td><td><strong>Image Re-tagger</strong> (NEW)</td><td>New component: skopeo-based batch re-tag</td></tr>
+        <tr><td>6</td><td><strong>CI Build Trigger</strong> (MODIFIED)</td><td>Re-tag event replaces push build as trigger</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Key Configuration Files</h3>
+      <table>
+        <tr><th>File</th><th>Repo</th><th>Phase 2 Change</th></tr>
+        <tr><td><code>main-release-source-map.yaml</code></td><td>RHOAI-Build-Config</td><td>Used for re-tag target mapping</td></tr>
+        <tr><td><code>build/operator-nudging.yaml</code></td><td>rhods-operator</td><td>Batch update from re-tag</td></tr>
+        <tr><td><code>build/operands-map.yaml</code></td><td>rhods-operator</td><td>Batch digest injection</td></tr>
+        <tr><td><code>.tekton/*-push.yaml</code></td><td>Component repos</td><td>CEL disabled on release branches</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="ref-grid">
+    <div class="ref-section">
+      <h3>Image Tag Lifecycle</h3>
+      <table>
+        <tr><th>Stage</th><th>Tag</th><th>Digest</th></tr>
+        <tr><td>PR build</td><td><code>pr-{number}-{sha}</code></td><td><code>sha256:aaa...</code></td></tr>
+        <tr><td>Early-gate build</td><td><code>early-gate-{date}-{sha}</code></td><td><code>sha256:bbb...</code></td></tr>
+        <tr><td>Re-tag on green</td><td><code>rhoai-3.6-ea.1</code></td><td><code>sha256:bbb...</code> (same!)</td></tr>
+        <tr><td>Unchanged component</td><td><code>rhoai-3.6-ea.1</code> (existing)</td><td><code>sha256:ccc...</code> (prior cycle)</td></tr>
+      </table>
+    </div>
+    <div class="ref-section">
+      <h3>Branch Build Source</h3>
+      <table>
+        <tr><th>Branch Type</th><th>Image Source</th><th>Notes</th></tr>
+        <tr><td><strong>Non-code-frozen</strong></td><td>Stable early-gate pipeline</td><td>Most branches</td></tr>
+        <tr><td><strong>Code-frozen</strong></td><td>Release branch early-gate pipeline</td><td>Release-specific testing</td></tr>
+        <tr><td><strong>Hotfix</strong></td><td>On-demand push build</td><td>Manual trigger on release branch</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="ref-section">
+    <h3>SLSA Provenance &amp; Compliance</h3>
+    <table>
+      <tr><th>Aspect</th><th>Phase 1</th><th>Phase 2</th></tr>
+      <tr><td><strong>Build source</strong></td><td>Release branch code</td><td>Stable/main branch code</td></tr>
+      <tr><td><strong>Provenance ref</strong></td><td>Release branch commit</td><td>Stable branch commit</td></tr>
+      <tr><td><strong>Code match</strong></td><td>Exact match (built from release)</td><td>Equivalent (stable = release at build time)</td></tr>
+      <tr><td><strong>Concern</strong></td><td>None</td><td>Provenance doesn&rsquo;t reference release branch</td></tr>
+      <tr><td><strong>Mitigation</strong></td><td>N/A</td><td>Audit trail shows stable &rarr; release merge timing</td></tr>
+    </table>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Phase 2 Timeline (Approximate)</h3>
+    <pre>
+02:00 UTC  Centralized PR Creator runs (same as Phase 1)
+02:05      PR builds start
+02:30      Leader PR Manager with build artifact metadata
+02:35      Early-gate pipeline: build once with PR-specific tags
+03:30      Early-gate tests complete
+
+--- ON GREEN (tests pass) ---
+
+03:35      PARALLEL TRACK 1: Image Re-tagging
+           skopeo copy: re-tag all components (~5 min)
+03:40      Re-tag triggers operator-processor (batch)
+03:55      Operator CI build completes
+04:05      Bundle CI build completes
+04:10      FBC CI build completes
+           Release images available (~40 min after tests)
+
+03:35      PARALLEL TRACK 2: Code Promotion
+           Merge to stable, promote to release branches
+           Push builds DISABLED (code for tracking only)
+
+~04:10     Release images available (vs ~05:00 in Phase 1)</pre>
+  </div>
+
+  <div class="state-machine">
+    <h3 style="font-size:0.9rem;font-weight:600;margin-bottom:0.75rem">Re-tag Command Pattern</h3>
+    <pre>
+# For each component image:
+skopeo copy \
+  --all \
+  docker://quay.io/rhoai/${COMPONENT}@sha256:${EARLY_GATE_DIGEST} \
+  docker://quay.io/rhoai/${COMPONENT}:${RELEASE_TAG}
+
+# Example:
+skopeo copy \
+  --all \
+  docker://quay.io/rhoai/odh-dashboard-rhel9@sha256:abc123... \
+  docker://quay.io/rhoai/odh-dashboard-rhel9:rhoai-3.6-ea.1
+
+# Properties:
+#   --all        : copies all architectures (multi-arch manifest list)
+#   Idempotent   : safe to re-run (same digest &rarr; no-op)
+#   Auth         : Quay robot account with write access</pre>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      curve: 'basis',
+      rankSpacing: 60,
+      nodeSpacing: 30,
+      padding: 12,
+    },
+    securityLevel: 'loose',
+  });
+
+  await mermaid.run();
+
+  const defined = ['e2e-image-promotion','early-gate-build-tagging','image-retagging','modified-nudge-chain','ci-build-chain','code-promotion','phase-comparison','reference'];
+  const hashTab = location.hash.replace('#','');
+  const initial = defined.includes(hashTab) ? hashTab : 'e2e-image-promotion';
+  document.querySelectorAll('.tab-content').forEach(el => {
+    if (el.id !== initial) el.classList.add('hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + initial + "'"));
+  });
+</script>
+
+<script>
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.remove('hidden');
+    event.target.classList.add('active');
+    history.replaceState(null, '', '#' + tabId);
+  }
+  window.switchTab = switchTab;
+
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.replace('#','');
+    if (document.getElementById(tab)) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + tab + "'"));
+      });
+      document.getElementById(tab).classList.remove('hidden');
+    }
+  });
+
+  // ── Zoom state ────────────────────────────────────────────
+  const zoomState = {};
+
+  function getZoom(id) {
+    if (!zoomState[id]) zoomState[id] = { scale: 1 };
+    return zoomState[id];
+  }
+
+  function applyZoom(id) {
+    const state = getZoom(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transform = `scale(${state.scale})`;
+    const label = document.getElementById(id + '-level');
+    if (label) label.textContent = Math.round(state.scale * 100) + '%';
+  }
+
+  function zoom(id, direction) {
+    const state = getZoom(id);
+    const factor = direction > 0 ? 1.2 : 1 / 1.2;
+    state.scale = Math.max(0.1, Math.min(5, state.scale * factor));
+    applyZoom(id);
+  }
+  window.zoom = zoom;
+
+  function resetZoom(id) {
+    const state = getZoom(id);
+    state.scale = 1;
+    applyZoom(id);
+    const container = document.getElementById(id + '-container');
+    if (container) { container.scrollLeft = 0; container.scrollTop = 0; }
+  }
+  window.resetZoom = resetZoom;
+
+  function fitToWidth(id) {
+    const container = document.getElementById(id + '-container');
+    const inner = document.getElementById(id);
+    if (!container || !inner) return;
+    const state = getZoom(id);
+    state.scale = 1;
+    inner.style.transform = `scale(1)`;
+    const contentW = inner.scrollWidth;
+    const viewW = container.clientWidth - 32;
+    if (contentW > 0) {
+      state.scale = Math.max(0.1, Math.min(2, viewW / contentW));
+    }
+    applyZoom(id);
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
+  }
+  window.fitToWidth = fitToWidth;
+
+  // ── Mouse-wheel zoom ─────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    container.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const inner = container.querySelector('.diagram-inner');
+      if (!inner) return;
+      const id = inner.id;
+      const direction = e.deltaY < 0 ? 1 : -1;
+      zoom(id, direction);
+    }, { passive: false });
+  });
+
+  // ── Click-drag panning ────────────────────────────────────
+  document.querySelectorAll('.diagram-container').forEach(container => {
+    let isDragging = false, startX, startY, scrollL, scrollT;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      startX = e.pageX - container.offsetLeft;
+      startY = e.pageY - container.offsetTop;
+      scrollL = container.scrollLeft;
+      scrollT = container.scrollTop;
+      container.style.cursor = 'grabbing';
+    });
+
+    container.addEventListener('mouseleave', () => { isDragging = false; container.style.cursor = 'grab'; });
+    container.addEventListener('mouseup', () => { isDragging = false; container.style.cursor = 'grab'; });
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const y = e.pageY - container.offsetTop;
+      container.scrollLeft = scrollL - (x - startX);
+      container.scrollTop = scrollT - (y - startY);
+    });
+  });
+</script>
+
+</body>
+</html>
