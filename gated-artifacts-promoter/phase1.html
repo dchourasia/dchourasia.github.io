@@ -275,7 +275,7 @@ flowchart TB
     PR_CREATE --> MONITOR
 
     subgraph COMP3["Component 3: Leader PR Manager"]
-        LEADER_PR["Create fresh<br/>Leader PR in<br/>RHOAI-Build-Config<br/>(new PR per cycle)"]
+        LEADER_PR["Create fresh<br/>Leader PR in<br/>gated-artifacts-promoter repo<br/>(new PR per cycle)"]
         LEADER_BRANCH["Branch:<br/><code>gated-auto-merge-leader</code><br/>targeting <code>main</code>"]
         EARLY_TRIGGER["Trigger early-gate<br/>pipeline via Leader PR"]
         LEADER_PR --> LEADER_BRANCH --> EARLY_TRIGGER
@@ -548,7 +548,7 @@ flowchart TD
         subgraph LEADER_CHECK["Leader PR Lifecycle (Fresh Per Cycle)"]
             CLOSE_OLD["Close any existing<br/>Leader PR from<br/>previous cycle"]
             CREATE_BRANCH["Create / force-push<br/><code>gated-auto-merge-leader</code><br/>branch from <code>main</code>"]
-            CREATE_LP["Create fresh Leader PR<br/>in RHOAI-Build-Config<br/>targeting <code>main</code>"]
+            CREATE_LP["Create fresh Leader PR<br/>in gated-artifacts-promoter repo<br/>targeting <code>main</code>"]
         end
 
         subgraph LEADER_CONTENT["Leader PR Content"]
@@ -562,7 +562,7 @@ flowchart TD
     end
 
     subgraph TRIGGER_EG["Trigger Early-Gate"]
-        EG_PIPELINE["Leader PR push triggers<br/>early-gate pipeline<br/>(PaC / Tekton on<br/>RHOAI-Build-Config)"]
+        EG_PIPELINE["Leader PR push triggers<br/>early-gate pipeline<br/>(PaC / Tekton on<br/>gated-artifacts-promoter repo)"]
         EG_NOTE["Note: Leader PR is<br/>closed after the<br/>early-gate cycle completes"]
     end
 
@@ -598,7 +598,7 @@ flowchart TD
       <h3>Leader PR Key Properties</h3>
       <table>
         <tr><th>Property</th><th>Value</th></tr>
-        <tr><td><strong>Repository</strong></td><td><code>RHOAI-Build-Config</code></td></tr>
+        <tr><td><strong>Repository</strong></td><td><code>gated-artifacts-promoter</code></td></tr>
         <tr><td><strong>Branch</strong></td><td><code>gated-auto-merge-leader</code></td></tr>
         <tr><td><strong>Target</strong></td><td><code>main</code></td></tr>
         <tr><td><strong>Lifecycle</strong></td><td>Fresh per cycle &mdash; new PR each early-gate run</td></tr>
@@ -630,7 +630,7 @@ flowchart TD
         <pre class="mermaid">
 flowchart TD
     subgraph TRIGGER["Pipeline Trigger"]
-        LP_PUSH["Leader PR push to<br/><code>gated-auto-merge-leader</code><br/>branch in RHOAI-Build-Config"]
+        LP_PUSH["Leader PR push to<br/><code>gated-auto-merge-leader</code><br/>branch in gated-artifacts-promoter repo"]
         PAC["PaC / Tekton detects<br/>push event on Leader PR"]
         LP_PUSH --> PAC
     end
