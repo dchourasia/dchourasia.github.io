@@ -48,6 +48,7 @@ jobs:
         cp -r adlc-design _site/adlc-design
         cp -r modular-operator-arch _site/modular-operator-arch
         cp -r gated-artifacts-promoter _site/gated-artifacts-promoter
+        cp -r productization-contract _site/productization-contract
 
     - name: Setup Pages
       uses: actions/configure-pages@v4

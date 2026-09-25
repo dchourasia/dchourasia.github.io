@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build &amp; Release Operations — RACI Matrix (Full Coverage)</title>
+<style>
+  :root {
+    --r-color: #1a73e8; --a-color: #e8710a; --c-color: #34a853; --i-color: #9e9e9e;
+    --r-bg: #e8f0fe; --a-bg: #fef3e0; --c-bg: #e6f4ea; --i-bg: #f5f5f5;
+    --border: #dadce0; --header-bg: #1a1a2e; --section-bg: #f8f9fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #202124; background: #fff; line-height: 1.6; }
+  .container { max-width: 1140px; margin: 0 auto; padding: 24px; }
+  .report-header { background: var(--header-bg); color: #fff; padding: 40px 32px; border-radius: 12px; margin-bottom: 24px; }
+  .report-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .report-header .subtitle { font-size: 15px; color: #b0b8c8; }
+  .report-header .badge { display: inline-block; background: rgba(255,255,255,0.15); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 12px; }
+  .guiding-note { background: #fffde7; border-left: 4px solid #f9a825; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 14px; }
+  .guiding-note strong { color: #e65100; }
+  .compound-note { background: #f3e5f5; border-left: 4px solid #8e24aa; padding: 12px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; font-size: 13px; color: #4a148c; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; background: var(--section-bg); padding: 16px 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .legend-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; font-weight: 700; font-size: 14px; }
+  .badge-R { background: var(--r-bg); color: var(--r-color); }
+  .badge-A { background: var(--a-bg); color: var(--a-color); }
+  .badge-C { background: var(--c-bg); color: var(--c-color); }
+  .badge-I { background: var(--i-bg); color: var(--i-color); }
+  .section { margin-bottom: 36px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .section-number { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--header-bg); color: #fff; border-radius: 50%; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .section h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+  .section .context { font-size: 13px; color: #5f6368; margin: 4px 0 12px 44px; }
+  .deferred-tag { display: inline-block; background: #fff3e0; color: #e65100; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+  table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); font-size: 14px; }
+  thead th { background: #3c4043; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+  thead th:not(:first-child) { text-align: center; width: 130px; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody td:not(:first-child) { text-align: center; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  tbody tr:hover { background: #f0f4ff; }
+  .raci { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border-radius: 6px; font-weight: 700; font-size: 14px; padding: 0 4px; }
+  .raci-R { background: var(--r-bg); color: var(--r-color); }
+  .raci-A { background: var(--a-bg); color: var(--a-color); }
+  .raci-C { background: var(--c-bg); color: var(--c-color); }
+  .raci-I { background: var(--i-bg); color: var(--i-color); }
+  .raci-compound { display: inline-flex; gap: 3px; }
+  .note { font-size: 12px; color: #5f6368; margin-top: 6px; margin-left: 44px; font-style: italic; }
+  .footer { text-align: center; color: #9e9e9e; font-size: 12px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="report-header">
+  <h1>Build &amp; Release Operations — RACI Matrix</h1>
+  <div class="subtitle">Responsibility assignment for Productization and Component Teams based on the proposed contract</div>
+  <span class="badge">Source: Build &amp; Release Operations Contract (Work In Progress) · Refreshed 25 Sep 2026</span>
+</div>
+
+<div class="guiding-note">
+  <strong>Guiding principles (from the document):</strong><br>
+  • Productization team will own implementation &amp; maintenance of all automated tools, jobs, pipelines, documentation, and runbooks mentioned in each proposal.<br>
+  • Productization owns the underlying infrastructure and global configuration; component / product teams own anything component-specific and related to product functionality.
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-badge badge-R">R</span> Responsible — does the work</div>
+  <div class="legend-item"><span class="legend-badge badge-A">A</span> Accountable — ultimately answerable / approves</div>
+  <div class="legend-item"><span class="legend-badge badge-C">C</span> Consulted — provides input before work</div>
+  <div class="legend-item"><span class="legend-badge badge-I">I</span> Informed — kept updated on outcome</div>
+</div>
+
+<div class="compound-note">
+  <strong>Compound assignments:</strong> When an area involves only two teams, a single team may carry two roles (e.g. <span class="raci raci-R" style="display:inline;padding:1px 5px;font-size:12px;">R</span><span class="raci raci-A" style="display:inline;padding:1px 5px;font-size:12px;">A</span> = does the work <em>and</em> is ultimately accountable). All four RACI roles are covered in every row.
+</div>
+
+<!-- 1 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">1</span><h2>Dockerfile.konflux Maintenance</h2></div>
+  <div class="context">Component team owns their Dockerfile.konflux; Productization creates initial placeholders. CODEOWNERS routes reviews to both teams.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Create empty placeholder Dockerfiles during component onboarding</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Build the component with correct Dockerfile hermetically (onboarding)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Own and maintain Dockerfile.konflux in the RHDS repo</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Raise PRs to RHDS main for core Dockerfile changes</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-I">I</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Review Dockerfile changes (via CODEOWNERS)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci-compound"><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 2 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">2</span><h2>Base Image Selection &amp; Updates</h2></div>
+  <div class="context">Component team selects from an approved catalog and merges Renovate PRs; Productization maintains the catalog and Renovate config.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Select base image from approved catalog and update via PR to RHDS main</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Merge Renovate PRs (auto-merge enabled for patch updates)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain approved base-image catalog</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain Renovate global configuration</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Ensure Renovate PRs for their images are merged and base/builder images are latest</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 3 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">3</span><h2>Operands Manifest Config Updates</h2></div>
+  <div class="context">Component team updates manifests-config.yaml via PR; Productization owns CI validation and reviews for operator compatibility.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Update manifest config (manifests-config.yaml) via PR on component changes</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-I">I</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Own CI validation of manifest schema and resource references</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Review manifest changes for operator compatibility</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 4 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">4</span><h2>Build-Time Dependency Management</h2></div>
+  <div class="context">Component team owns hermetic compliance; Productization provides pre-commit tooling, runbooks, and promotion-gate enforcement.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Own hermetic compliance of Dockerfiles</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Provide pre-commit hook / PR build pipeline for hermetic issue detection</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain runbook: "How to make your build hermetic" (prefetch, cachi2, AIPCC index)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Enforce promotion-gate checks and flag violations</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 5 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">5</span><h2>Python Dependency Pinning (AIPCC Index)</h2></div>
+  <div class="context">Component team configures dependency versions; Ecosystems team provides base-image tooling config (uv.conf, pip.conf, AIPCC index URL).</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th><th>Ecosystems</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Configure dependency versions in requirements.txt or lock files</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci raci-I">I</span></td>
+        <td><span class="raci raci-C">C</span></td>
+      </tr>
+      <tr>
+        <td>Ensure uv.conf / pip.conf and AIPCC index URL are configured in base image</td>
+        <td><span class="raci raci-I">I</span></td>
+        <td><span class="raci raci-C">C</span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain "Python builds in RHOAI" cookbook documentation</td>
+        <td><span class="raci raci-I">I</span></td>
+        <td><span class="raci raci-C">C</span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Own prefetch task configuration</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci raci-C">C</span></td>
+        <td><span class="raci raci-I">I</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 6 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">6</span><h2>Build Parameter Tuning (Resources, Timeouts)</h2></div>
+  <div class="context">Component team sets parameters in PipelineRun YAML; Productization provides runbook and reviews PRs.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Provide runbook with examples and instructions for resource/timeout tuning</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Set resource requests/limits and timeouts in PipelineRun YAML</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-A">A</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Review and merge build-parameter PRs</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 7 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">7</span><h2>Quay Repository Creation Requests</h2></div>
+  <div class="context">Component team submits PRs to app-interface; Productization provides guidance, reviews, and enforces naming conventions.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Submit PR to app-interface with Quay repo definition</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-I">I</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Provide instructions for repo definition with corresponding org/permissions</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Validate configuration via PR CI against app-interface standards</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Review and approve the app-interface MR</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Document repository naming conventions and ensure consistent application</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 8 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">8</span><h2>Conforma Failure Triage (Component-Level)</h2></div>
+  <div class="context">Component-specific failures are routed automatically via Jira and Slack; Productization handles infrastructure and cross-cutting issues.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Fix component-specific failures (version label mismatches, hermetic violations, unsigned RPMs)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain failure-type → owner mapping for automated routing</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Route component-specific failures via Jira tickets and Slack notifications</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Handle infrastructure failures, policy updates, and cross-cutting issues</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 9 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">9</span><h2>Conforma Exception Request Submission</h2></div>
+  <div class="context">Component team submits exception MRs to gitlab.cee.redhat.com/releng/konflux-release-data; ProdSec and Productization review for compliance.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th><th>ProdSec</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Submit exception MR to konflux-release-data</td>
+        <td><span class="raci-compound"><span class="raci raci-A">A</span><span class="raci raci-R">R</span></span></td>
+        <td><span class="raci raci-C">C</span></td>
+        <td><span class="raci raci-I">I</span></td>
+      </tr>
+      <tr>
+        <td>Validate exception format and scope via MR CI</td>
+        <td><span class="raci raci-I">I</span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci raci-C">C</span></td>
+      </tr>
+      <tr>
+        <td>Review and approve exception (compliance gate)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci raci-R">R</span></td>
+        <td><span class="raci raci-A">A</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">Both ProdSec and Productization review are required for approval. ProdSec holds ultimate compliance accountability.</p>
+</div>
+
+<!-- 10 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">10</span><h2>RPM Signature Compliance</h2></div>
+  <div class="context">Component team investigates unsigned RPMs in their build output; Productization escalates only for systemic signing infrastructure issues.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Investigate unsigned RPMs in build output</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>File upstream bug or use Conforma exception process for unsigned/upstream RPMs</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain runbook: identifying unsigned RPMs and remediation options</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Escalate systemic signing infrastructure issues</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 11 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">11</span><h2>FIPS Compliance Configuration</h2></div>
+  <div class="context">Component team ensures FIPS-compliant dependencies; Productization provides per-language checklists, CI pre-checks, and remediation support.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Ensure FIPS-compliant crypto libraries in dependencies</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Provide FIPS compliance checklist per language (Go, Python, Node)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Implement automated FIPS pre-check in CI before merge</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Support non-trivial FIPS remediation (crypto library selection)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-A">A</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 12 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">12</span><h2>Quay Repository Permissions</h2></div>
+  <div class="context">Component team submits permission-change PRs to app-interface; Productization reviews as a security gate and manages bot/service accounts.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Submit PR to app-interface for permission changes</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-A">A</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Validate permission changes via CI</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Review and approve permission grants (security gate)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Manage bot access and service accounts</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 13 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">13</span><h2>Tekton File Maintenance</h2> <span class="deferred-tag">Deferred — after Gated Promotion &amp; ODH elimination</span></div>
+  <div class="context">Main-branch Tekton files move from konflux-central to component repos; Productization owns release-branch pipelines and CI validation on both main and release branches.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Maintain main-branch Tekton files via PRs to component repos (no longer via konflux-central)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-I">I</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+      <tr>
+        <td>Own and maintain CI validation for Tekton file changes (main &amp; release branches)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Own release-branch push pipelines</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Ensure latest release-branch pipeline params are synchronized with main during development</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 14 -->
+<div class="section">
+  <div class="section-header"><span class="section-number">14</span><h2>Konflux Pipeline Debugging</h2></div>
+  <div class="context">Component team debugs their own pipeline failures with self-service tooling; Productization provides guides, automation, and infrastructure-level escalation.</div>
+  <table>
+    <thead><tr><th>Activity</th><th>Component Team</th><th>Productization</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Debug component-specific pipeline failures (Konflux UI, kubearchive, chai-bot)</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+      </tr>
+      <tr>
+        <td>Maintain Konflux debugging guide (credentials, cluster access instructions)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Build and maintain build-buddy agentic automation</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Provide self-service tooling (cosign for provenance, kubearchive for removed resources)</td>
+        <td><span class="raci-compound"><span class="raci raci-C">C</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-A">A</span></span></td>
+      </tr>
+      <tr>
+        <td>Escalation path for infrastructure-level failures only</td>
+        <td><span class="raci-compound"><span class="raci raci-R">R</span><span class="raci raci-I">I</span></span></td>
+        <td><span class="raci-compound"><span class="raci raci-A">A</span><span class="raci raci-C">C</span></span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">Component teams escalate to Productization only for infrastructure-level pipeline failures.</p>
+</div>
+
+<div class="footer">
+  Generated from the "Build &amp; Release Operations" tab · Document last read 25 Sep 2026<br>
+  No process content or decisions have been altered — format only.
+</div>
+
+</div>
+</body>
+</html>
